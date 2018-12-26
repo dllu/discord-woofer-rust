@@ -1,5 +1,5 @@
 extern crate rand;
-use puppywhy::rand::distributions::{Weighted, WeightedChoice, Distribution};
+use puppywhy::rand::distributions::{Distribution, Weighted, WeightedChoice};
 
 macro_rules! weighted_choice_fn {
     ( $( ($x:expr, $y:expr) ),* ) => {
@@ -40,31 +40,48 @@ fn special() -> String {
         (1, "why not?"),
         (1, "woof woof!"),
         (1, "why indeed?"),
-        (1, "THERE IS AS YET INSUFFICIENT DATA FOR A MEANINGFUL ANSWER"),
+        (
+            1,
+            "THERE IS AS YET INSUFFICIENT DATA FOR A MEANINGFUL ANSWER"
+        ),
         (1, "life is full of mysteries"),
         (1, "I'm not telling you"),
-        (1, "you know why")).to_string()
+        (1, "you know why")
+    )
+    .to_string()
 }
 
 fn phrase() -> String {
     weighted_choice_fn!(
-        (1, || -> String {format!("for the {} {}", nouned_verb(), prepositional_phrase())}),
-        (1, || -> String {format!("because {}", sentence())}),
-        (1, || -> String {format!("so as to {} {}", present_verb_phrase(), object())}),
-        (1, || -> String {format!("to {} {}", present_verb_phrase(), object())}))()
+        (1, || -> String {
+            format!("for the {} {}", nouned_verb(), prepositional_phrase())
+        }),
+        (1, || -> String { format!("because {}", sentence()) }),
+        (1, || -> String {
+            format!("so as to {} {}", present_verb_phrase(), object())
+        }),
+        (1, || -> String {
+            format!("to {} {}", present_verb_phrase(), object())
+        })
+    )()
 }
 
 fn preposition() -> String {
-    weighted_choice!(
-        (1, "of"),
-        (1, "from")).to_string()
+    weighted_choice!((1, "of"), (1, "from")).to_string()
 }
 
 fn prepositional_phrase() -> String {
     weighted_choice_fn!(
-        (1, || -> String {format!("{} {} {}", preposition(), article(), noun_phrase())}),
-        (1, || -> String {format!("{} {}", preposition(), proper_noun())}),
-        (1, || -> String {format!("{} {}", preposition(), accusative_pronoun())}))()
+        (1, || -> String {
+            format!("{} {} {}", preposition(), article(), noun_phrase())
+        }),
+        (1, || -> String {
+            format!("{} {}", preposition(), proper_noun())
+        }),
+        (1, || -> String {
+            format!("{} {}", preposition(), accusative_pronoun())
+        })
+    )()
 }
 
 fn sentence() -> String {
@@ -75,7 +92,10 @@ fn subject() -> String {
     weighted_choice_fn!(
         (1, proper_noun),
         (1, nominative_pronoun),
-        (1, || -> String{format!("{} {}", article(), noun_phrase())}))()
+        (1, || -> String {
+            format!("{} {}", article(), noun_phrase())
+        })
+    )()
 }
 
 fn proper_noun() -> String {
@@ -87,14 +107,21 @@ fn proper_noun() -> String {
         (1, "Blue Puppy"),
         (1, "Red Puppy"),
         (1, "Green Puppy"),
-        (1, "Yellow Puppy")).to_string()
+        (1, "Yellow Puppy")
+    )
+    .to_string()
 }
 
 fn noun_phrase() -> String {
     weighted_choice_fn!(
         (3, noun),
-        (3, || -> String{format!("{} {}", adjective_phrase(), noun_phrase())}),
-        (1, || -> String{format!("{} and {}", noun_phrase(), noun_phrase())}))()
+        (3, || -> String {
+            format!("{} {}", adjective_phrase(), noun_phrase())
+        }),
+        (1, || -> String {
+            format!("{} and {}", noun_phrase(), noun_phrase())
+        })
+    )()
 }
 
 fn noun() -> String {
@@ -136,7 +163,9 @@ fn noun() -> String {
         (1, "brood lord"),
         (1, "overlord"),
         (1, "overseer"),
-        (1, "pupper")).to_string()
+        (1, "pupper")
+    )
+    .to_string()
 }
 
 fn nominative_pronoun() -> String {
@@ -146,7 +175,9 @@ fn nominative_pronoun() -> String {
         (1, "he"),
         (1, "she"),
         (1, "they"),
-        (1, "we")).to_string()
+        (1, "we")
+    )
+    .to_string()
 }
 
 fn accusative_pronoun() -> String {
@@ -156,7 +187,9 @@ fn accusative_pronoun() -> String {
         (1, "her"),
         (1, "him"),
         (1, "them"),
-        (1, "us")).to_string()
+        (1, "us")
+    )
+    .to_string()
 }
 
 fn nouned_verb() -> String {
@@ -164,14 +197,21 @@ fn nouned_verb() -> String {
         (1, "love"),
         (1, "approval"),
         (1, "satisfaction"),
-        (1, "affection")).to_string()
+        (1, "affection")
+    )
+    .to_string()
 }
 
 fn adjective_phrase() -> String {
     weighted_choice_fn!(
         (5, adjective),
-        (1, || -> String {format!("{} and {}", adjective_phrase(), adjective_phrase())}),
-        (3, || -> String {format!("{} {}", intensifier(), adjective())}))()
+        (1, || -> String {
+            format!("{} and {}", adjective_phrase(), adjective_phrase())
+        }),
+        (3, || -> String {
+            format!("{} {}", intensifier(), adjective())
+        })
+    )()
 }
 
 fn pos_intensifier() -> String {
@@ -181,13 +221,16 @@ fn pos_intensifier() -> String {
         (1, "somewhat"),
         (1, "moderately"),
         (1, "mildly"),
-        (1, "quite")).to_string()
+        (1, "quite")
+    )
+    .to_string()
 }
 
 fn intensifier() -> String {
     weighted_choice_fn!(
         (2, pos_intensifier),
-        (1, || -> String {format!("not {}", pos_intensifier())}))()
+        (1, || -> String { format!("not {}", pos_intensifier()) })
+    )()
 }
 
 fn adjective() -> String {
@@ -228,7 +271,9 @@ fn adjective() -> String {
         (1, "agreeable"),
         (1, "disagreeable"),
         (1, "tubular"),
-        (1, "simply connected")).to_string()
+        (1, "simply connected")
+    )
+    .to_string()
 }
 
 fn article() -> String {
@@ -237,8 +282,11 @@ fn article() -> String {
 
 fn predicate() -> String {
     weighted_choice_fn!(
-        (1, || -> String {format!("{} {}", transitive_verb(), object())}),
-        (1, intransitive_verb))()
+        (1, || -> String {
+            format!("{} {}", transitive_verb(), object())
+        }),
+        (1, intransitive_verb)
+    )()
 }
 
 fn present_verb() -> String {
@@ -249,13 +297,16 @@ fn present_verb() -> String {
         (1, "fool"),
         (1, "please"),
         (1, "satisfy"),
-        (1, "outwit")).to_string()
+        (1, "outwit")
+    )
+    .to_string()
 }
 
 fn present_verb_phrase() -> String {
     weighted_choice_fn!(
         (7, present_verb),
-        (1, || -> String {format!("obtain {} from", object())}))()
+        (1, || -> String { format!("obtain {} from", object()) })
+    )()
 }
 
 fn transitive_verb() -> String {
@@ -271,7 +322,9 @@ fn transitive_verb() -> String {
         (1, "hugged"),
         (1, "betrayed"),
         (1, "attacked"),
-        (1, "advanced upon")).to_string()
+        (1, "advanced upon")
+    )
+    .to_string()
 }
 
 fn intransitive_verb() -> String {
@@ -283,7 +336,9 @@ fn intransitive_verb() -> String {
         (1, "knew it was a good idea"),
         (1, "had a good feeling about it"),
         (1, "demanded it be this way"),
-        (1, "exploded")).to_string()
+        (1, "exploded")
+    )
+    .to_string()
 }
 
 fn object() -> String {
@@ -300,6 +355,6 @@ fn object() -> String {
                 }
             }
             format!("{} {}", a, n)
-        }))()
+        })
+    )()
 }
-

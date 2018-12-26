@@ -7,4 +7,11 @@ authors = ["daniel lu <daniel@lawrence.lu>"]
 lazy_static = "1.0.0"
 rand = "0.5.0-pre.1"
 regex = "1.0.0"
+reqwest = "0.9.5"
+serde = "1.0"
+serde_derive = "1.0"
 serenity = "0.5"
+url = "1.7.2"
+
+[patch.crates-io]
+openssl = { git = "https://github.com/ishitatsuyuki/rust-openssl", branch = "0.9.x" }
