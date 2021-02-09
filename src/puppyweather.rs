@@ -1,28 +1,28 @@
 extern crate reqwest;
 extern crate url;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Location {
     lat: f64,
     lng: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GeocodeGeometry {
     location: Location,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GeocodeLocation {
     geometry: GeocodeGeometry,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Geocode {
     results: Vec<GeocodeLocation>,
 }
 
-pub fn geocode(address: String, apikey: &String) -> Result<Location, reqwest::Error> {
+pub async fn geocode(address: String, apikey: &str) -> Result<Location, reqwest::Error> {
     let encoded: String = url::form_urlencoded::Serializer::new(String::new())
         .append_pair("address", &address)
         .append_pair("key", &apikey)
@@ -31,7 +31,7 @@ pub fn geocode(address: String, apikey: &String) -> Result<Location, reqwest::Er
         "https://maps.googleapis.com/maps/api/geocode/json?{}",
         encoded
     );
-    let geocode_response: Geocode = reqwest::get(&geocode_url)?.json()?;
+    let geocode_response: Geocode = reqwest::get(&geocode_url).await?.json().await?;
     let location = &geocode_response.results.first().unwrap().geometry.location;
     Ok(Location {
         lat: location.lat,
@@ -39,60 +39,68 @@ pub fn geocode(address: String, apikey: &String) -> Result<Location, reqwest::Er
     })
 }
 
-#[derive(Deserialize)]
-pub struct WeatherCurrently {
-    summary: String,
-    icon: String,
-    temperature: f64,
+#[derive(Deserialize, Debug)]
+pub struct WeatherMain {
+    temp: f64,
     humidity: f64,
-    precipProbability: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
+pub struct WeatherWeather {
+    description: String,
+    icon: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Weather {
-    currently: WeatherCurrently,
+    main: WeatherMain,
+    weather: Vec<WeatherWeather>,
 }
 
-pub fn weather(location: &Location, apikey: &String) -> Result<WeatherCurrently, reqwest::Error> {
+pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwest::Error> {
     let forecast_url = format!(
-        "https://api.darksky.net/forecast/{}/{},{}?units=si",
-        apikey, location.lat, location.lng
+        "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&lang=en",
+        location.lat, location.lng, apikey
     );
     println!("{}", forecast_url);
-    let weather: Weather = reqwest::get(&forecast_url)?.json()?;
-    Ok(weather.currently)
+    let weather: Weather = reqwest::get(&forecast_url).await?.json().await?;
+    Ok(weather)
 }
 
-pub fn weather_string(
-    address: String,
-    location: &Location,
-    weather_currently: WeatherCurrently,
-) -> String {
-    let emo = emoji(weather_currently.icon);
-    format!("weather in {} ({}, {}): {}. Temperature {:.2} K. Humidity {:.1}%. Precipitation probability {:.1}%. {}",
-       address,
-       location.lat,
-       location.lng,
-       weather_currently.summary,
-       weather_currently.temperature + 273.15_f64,
-       weather_currently.humidity * 100_f64,
-       weather_currently.precipProbability * 100_f64,
-       emo)
+pub fn weather_string(address: String, location: &Location, weather: Weather) -> String {
+    let emo = emoji(&weather.weather[0].icon);
+    format!(
+        "weather in {} ({}, {}): {}. Temperature {:.2} K. Humidity {:.1}%. {}",
+        address,
+        location.lat,
+        location.lng,
+        weather.weather[0].description,
+        weather.main.temp,
+        weather.main.humidity,
+        emo
+    )
 }
 
-fn emoji(icon: String) -> String {
+fn emoji(icon: &String) -> String {
     match icon.as_str() {
-        "clear-day" => "☀️".to_string(),
-        "clear-night" => "🌃".to_string(),
-        "rain" => "🌧️".to_string(),
-        "snow" => "🌨️".to_string(),
-        "sleet" => "🌨️".to_string(),
-        "wind" => "🌬️".to_string(),
-        "fog" => "🌫️".to_string(),
-        "cloudy" => "☁️".to_string(),
-        "partly-cloudy-day" => "⛅".to_string(),
-        "partly-cloudy-night" => "☁️".to_string(),
-        "thunderstorm" => "🌩️".to_string(),
+        "01d" => "☀️".to_string(),
+        "01n" => "🌃".to_string(),
+        "02d" => "⛅".to_string(),
+        "02n" => "☁️".to_string(),
+        "03d" => "☁️".to_string(),
+        "03n" => "☁️".to_string(),
+        "04d" => "⛅".to_string(),
+        "04n" => "☁️".to_string(),
+        "09d" => "🌧️".to_string(),
+        "09n" => "🌧️".to_string(),
+        "10d" => "🌧️".to_string(),
+        "10n" => "🌧️".to_string(),
+        "11d" => "🌩️".to_string(),
+        "11n" => "🌩️".to_string(),
+        "13d" => "🌨️".to_string(),
+        "13n" => "🌨️".to_string(),
+        "50d" => "🌫️".to_string(),
+        "50n" => "🌫️".to_string(),
         _ => "".to_string(),
     }
 }

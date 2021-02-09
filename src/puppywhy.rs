@@ -1,17 +1,18 @@
 extern crate rand;
-use puppywhy::rand::distributions::{Distribution, Weighted, WeightedChoice};
+use rand::distributions::{weighted::WeightedIndex, Distribution};
 
 macro_rules! weighted_choice_fn {
     ( $( ($x:expr, $y:expr) ),* ) => {
         {
-            let mut items: Vec<Weighted<fn() -> String>> = vec![
-                $(
-                    Weighted {weight: $x, item: $y},
-                    )*
+            let weights: Vec<i64> = vec![
+                $($x,)*
             ];
-            let wc = WeightedChoice::new(&mut items);
+            let items: Vec<fn() -> String> = vec![
+                $($y,)*
+            ];
+            let wc = WeightedIndex::new(&weights).unwrap();
             let mut rng = rand::thread_rng();
-            wc.sample(&mut rng)
+            items[wc.sample(&mut rng)]
         }
     };
 }
@@ -19,14 +20,15 @@ macro_rules! weighted_choice_fn {
 macro_rules! weighted_choice {
     ( $( ($x:expr, $y:expr) ),* ) => {
         {
-            let mut items = vec![
-                $(
-                    Weighted {weight: $x, item: $y},
-                    )*
+            let weights: Vec<i64> = vec![
+                $($x,)*
             ];
-            let wc = WeightedChoice::new(&mut items);
+            let items: Vec<String> = vec![
+                $($y.to_string(),)*
+            ];
+            let wc = WeightedIndex::new(&weights).unwrap();
             let mut rng = rand::thread_rng();
-            wc.sample(&mut rng)
+            items[wc.sample(&mut rng)].clone()
         }
     };
 }
@@ -48,7 +50,6 @@ fn special() -> String {
         (1, "I'm not telling you"),
         (1, "you know why")
     )
-    .to_string()
 }
 
 fn phrase() -> String {
@@ -67,7 +68,7 @@ fn phrase() -> String {
 }
 
 fn preposition() -> String {
-    weighted_choice!((1, "of"), (1, "from")).to_string()
+    weighted_choice!((1, "of"), (1, "from"))
 }
 
 fn prepositional_phrase() -> String {
@@ -109,7 +110,6 @@ fn proper_noun() -> String {
         (1, "Green Puppy"),
         (1, "Yellow Puppy")
     )
-    .to_string()
 }
 
 fn noun_phrase() -> String {
@@ -165,7 +165,6 @@ fn noun() -> String {
         (1, "overseer"),
         (1, "pupper")
     )
-    .to_string()
 }
 
 fn nominative_pronoun() -> String {
@@ -177,7 +176,6 @@ fn nominative_pronoun() -> String {
         (1, "they"),
         (1, "we")
     )
-    .to_string()
 }
 
 fn accusative_pronoun() -> String {
@@ -189,7 +187,6 @@ fn accusative_pronoun() -> String {
         (1, "them"),
         (1, "us")
     )
-    .to_string()
 }
 
 fn nouned_verb() -> String {
@@ -199,7 +196,6 @@ fn nouned_verb() -> String {
         (1, "satisfaction"),
         (1, "affection")
     )
-    .to_string()
 }
 
 fn adjective_phrase() -> String {
@@ -223,7 +219,6 @@ fn pos_intensifier() -> String {
         (1, "mildly"),
         (1, "quite")
     )
-    .to_string()
 }
 
 fn intensifier() -> String {
@@ -273,11 +268,10 @@ fn adjective() -> String {
         (1, "tubular"),
         (1, "simply connected")
     )
-    .to_string()
 }
 
 fn article() -> String {
-    weighted_choice!((1, "the"), (1, "some"), (1, "a")).to_string()
+    weighted_choice!((1, "the"), (1, "some"), (1, "a"))
 }
 
 fn predicate() -> String {
@@ -299,7 +293,6 @@ fn present_verb() -> String {
         (1, "satisfy"),
         (1, "outwit")
     )
-    .to_string()
 }
 
 fn present_verb_phrase() -> String {
@@ -324,7 +317,6 @@ fn transitive_verb() -> String {
         (1, "attacked"),
         (1, "advanced upon")
     )
-    .to_string()
 }
 
 fn intransitive_verb() -> String {
@@ -338,7 +330,6 @@ fn intransitive_verb() -> String {
         (1, "demanded it be this way"),
         (1, "exploded")
     )
-    .to_string()
 }
 
 fn object() -> String {
