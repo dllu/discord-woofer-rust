@@ -81,8 +81,8 @@ pub fn weather_string(address: String, location: &Location, weather: Weather) ->
     )
 }
 
-fn emoji(icon: &String) -> String {
-    match icon.as_str() {
+fn emoji(icon: &str) -> String {
+    match icon {
         "01d" => "☀️".to_string(),
         "01n" => "🌃".to_string(),
         "02d" => "⛅".to_string(),

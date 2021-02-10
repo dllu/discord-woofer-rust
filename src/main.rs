@@ -44,12 +44,12 @@ async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
         let mut map = game_lock.write().await;
         let entry = map
             .entry(msg.author.id.to_string())
-            .or_insert(Box::new(shakmaty::Chess::default()));
+            .or_insert_with(|| Box::new(shakmaty::Chess::default()));
         let pos = &**entry;
         let mov = san.to_move(pos)?;
         if let Ok(p) = pos.clone().play(&mov) {
             let fen = shakmaty::fen::epd(&p);
-            if let Some(f) = fen.split(" ").next() {
+            if let Some(f) = fen.split(' ').next() {
                 let status: &str;
 
                 match p.outcome() {
@@ -94,7 +94,7 @@ impl EventHandler for Handler {
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
         }
-        let ref content = &msg.content;
+        let content = &msg.content;
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
             if let Err(why) = msg.reply(&ctx.http, content).await {
