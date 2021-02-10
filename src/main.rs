@@ -80,7 +80,19 @@ impl EventHandler for Handler {
             }
         } else if CHESS_RE.is_match(&lower) {
             let san_str = &lower[12..];
-            let san: shakmaty::san::San = san_str.parse().unwrap();
+            let san_res = san_str.parse();
+            let san: shakmaty::san::San;
+            match san_res {
+                Ok(s) => {
+                    san = s;
+                }
+                Err(_) => {
+                    if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
+                        println!("Error sending message: {:?}", why);
+                    }
+                    return;
+                }
+            }
             let game_lock = {
                 let data_read = ctx.data.read().await;
                 data_read
@@ -97,19 +109,31 @@ impl EventHandler for Handler {
                 let mov = san.to_move(pos);
                 match mov {
                     Ok(m) => {
-                        let pos2 = pos.clone().play(&m).unwrap();
-                        let fen = shakmaty::fen::epd(&pos2);
-                        if let Some(f) = fen.split(" ").next() {
-                            if let Err(why) = msg
-                                .reply(&ctx.http, format!("https://chess.dllu.net/{}.png", f))
-                                .await
-                            {
-                                println!("Error sending message: {:?}", why);
+                        let pos2 = pos.clone().play(&m);
+                        match pos2 {
+                            Ok(p) => {
+                                let fen = shakmaty::fen::epd(&p);
+                                **entry = p;
+                                if let Some(f) = fen.split(" ").next() {
+                                    if let Err(why) = msg
+                                        .reply(
+                                            &ctx.http,
+                                            format!("https://chess.dllu.net/{}.png", f),
+                                        )
+                                        .await
+                                    {
+                                        println!("Error sending message: {:?}", why);
+                                    }
+                                }
+                            }
+                            Err(_) => {
+                                if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
+                                    println!("Error sending message: {:?}", why);
+                                }
                             }
                         }
-                        **entry = pos2;
                     }
-                    Err(m) => {
+                    Err(_) => {
                         if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
                             println!("Error sending message: {:?}", why);
                         }
