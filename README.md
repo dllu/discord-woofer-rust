@@ -4,6 +4,6 @@ a rust discord bot
 
 supported commands:
 
-* `pupper pupper woof` echos a dog-like onomatopoeia
-* `pupper pupper puppy weather [place name]` get current weather (powered by [DarkSky](https://darksky.net/poweredby/))
-* `pupper pupper puppy why` makes a random excuse
+* `woof` echos a dog-like onomatopoeia
+* `puppy weather [place name]` get current weather (powered by [OpenWeather API](https://openweathermap.org/api))
+* `puppy why` makes a random excuse

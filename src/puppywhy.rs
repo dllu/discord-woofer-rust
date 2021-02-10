@@ -163,7 +163,11 @@ fn noun() -> String {
         (1, "brood lord"),
         (1, "overlord"),
         (1, "overseer"),
-        (1, "pupper")
+        (1, "pupper"),
+        (1, "pawn"),
+        (1, "knight"),
+        (1, "rook"),
+        (1, "king")
     )
 }
 
@@ -191,10 +195,13 @@ fn accusative_pronoun() -> String {
 
 fn nouned_verb() -> String {
     weighted_choice!(
-        (1, "love"),
+        (1, "affection"),
         (1, "approval"),
-        (1, "satisfaction"),
-        (1, "affection")
+        (1, "embrace"),
+        (1, "honour"),
+        (1, "love"),
+        (1, "respect"),
+        (1, "satisfaction")
     )
 }
 
@@ -212,12 +219,13 @@ fn adjective_phrase() -> String {
 
 fn pos_intensifier() -> String {
     weighted_choice!(
-        (1, "very"),
+        (1, "arbitrarily"),
+        (1, "mildly"),
+        (1, "moderately"),
+        (1, "quite"),
         (1, "really"),
         (1, "somewhat"),
-        (1, "moderately"),
-        (1, "mildly"),
-        (1, "quite")
+        (1, "very")
     )
 }
 
@@ -260,12 +268,13 @@ fn adjective() -> String {
         (1, "aggressive"),
         (1, "spherical"),
         (1, "cute"),
-        (1, "African American"),
         (1, "differentiable"),
         (1, "open-source"),
         (1, "agreeable"),
         (1, "disagreeable"),
         (1, "tubular"),
+        (1, "toroidal"),
+        (1, "speckled"),
         (1, "simply connected")
     )
 }
@@ -285,13 +294,25 @@ fn predicate() -> String {
 
 fn present_verb() -> String {
     weighted_choice!(
-        (1, "defeat"),
+        (1, "bless"),
+        (1, "contradict"),
         (1, "counter"),
-        (1, "neutralise"),
+        (1, "defeat"),
+        (1, "discover"),
+        (1, "encourage"),
+        (1, "enlighten"),
+        (1, "excite"),
+        (1, "fascinate"),
         (1, "fool"),
+        (1, "impress"),
+        (1, "intimidate"),
+        (1, "neutralise"),
+        (1, "outwit"),
         (1, "please"),
         (1, "satisfy"),
-        (1, "outwit")
+        (1, "uplift"),
+        (1, "vanquish"),
+        (1, "vapoorise")
     )
 }
 
@@ -304,31 +325,38 @@ fn present_verb_phrase() -> String {
 
 fn transitive_verb() -> String {
     weighted_choice!(
-        (1, "threatened"),
-        (1, "told"),
+        (1, "advanced upon"),
         (1, "asked"),
+        (1, "attacked"),
         (1, "begged"),
-        (1, "helped"),
-        (1, "obeyed"),
+        (1, "betrayed"),
+        (1, "bother"),
+        (1, "captured"),
+        (1, "chastised"),
         (1, "commanded"),
         (1, "confessed to"),
+        (1, "deceived"),
+        (1, "entertained"),
+        (1, "helped"),
         (1, "hugged"),
-        (1, "betrayed"),
-        (1, "attacked"),
-        (1, "advanced upon")
+        (1, "obeyed"),
+        (1, "threatened"),
+        (1, "told")
     )
 }
 
 fn intransitive_verb() -> String {
     weighted_choice!(
+        (1, "demanded it be this way"),
+        (1, "evaporated"),
+        (1, "had a good feeling about it"),
         (1, "insisted on it"),
+        (1, "knew it was a good idea"),
+        (1, "sublimated"),
         (1, "suggested it"),
         (1, "told me to"),
         (1, "wanted it"),
-        (1, "knew it was a good idea"),
-        (1, "had a good feeling about it"),
-        (1, "demanded it be this way"),
-        (1, "exploded")
+        (2, "exploded")
     )
 }
 
