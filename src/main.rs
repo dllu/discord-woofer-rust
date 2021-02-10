@@ -75,7 +75,7 @@ impl EventHandler for Handler {
                 .await
                 .unwrap();
             let response = puppyweather::weather_string(address.to_string(), &location, weather);
-            if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
+            if let Err(why) = msg.reply(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
