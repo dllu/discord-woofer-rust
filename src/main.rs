@@ -79,7 +79,7 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
-            let san_str = &lower[12..];
+            let san_str = &content[12..];
             let san_res = san_str.parse();
             let san: shakmaty::san::San;
             match san_res {
