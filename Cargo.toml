@@ -13,6 +13,4 @@ url = "2.2.0"
 serenity = { version = "0.10", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }
 serde = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-
-[patch.crates-io]
-openssl = { git = "https://github.com/ishitatsuyuki/rust-openssl", branch = "0.9.x" }
+shakmaty = "0.17.2"

@@ -13,14 +13,20 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::env;
+use std::{collections::HashMap, env, sync::Arc};
 
 mod puppyweather;
 mod puppywhy;
+use shakmaty::Position;
 
 struct Handler {
     openweather_token: String,
     google_maps_token: String,
+}
+
+struct ChessGame;
+impl TypeMapKey for ChessGame {
+    type Value = Arc<RwLock<HashMap<String, Box<shakmaty::Chess>>>>;
 }
 
 #[async_trait]
@@ -40,27 +46,28 @@ impl EventHandler for Handler {
             )
             .unwrap();
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
+            static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
         }
         let ref content = &msg.content;
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
-            if let Err(why) = msg.channel_id.say(&ctx.http, content).await {
+            if let Err(why) = msg.reply(&ctx.http, content).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy why" {
-            if let Err(why) = msg.channel_id.say(&ctx.http, puppywhy::why()).await {
+            if let Err(why) = msg.reply(&ctx.http, puppywhy::why()).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy how" {
             if let Err(why) = msg
-                .channel_id
-                .say(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
+                .reply(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
                 .await
             {
                 println!("Error sending message: {:?}", why);
             }
         } else if WEATHER_RE.is_match(&lower) {
             let address = &lower[14..];
+            // TODO: error handlin
             let location = puppyweather::geocode(address.to_string(), &self.google_maps_token)
                 .await
                 .unwrap();
@@ -70,6 +77,44 @@ impl EventHandler for Handler {
             let response = puppyweather::weather_string(address.to_string(), &location, weather);
             if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
+            }
+        } else if CHESS_RE.is_match(&lower) {
+            let san_str = &lower[12..];
+            let san: shakmaty::san::San = san_str.parse().unwrap();
+            let game_lock = {
+                let data_read = ctx.data.read().await;
+                data_read
+                    .get::<ChessGame>()
+                    .expect("Expected ChessGame")
+                    .clone()
+            };
+            {
+                let mut map = game_lock.write().await;
+                let entry = map
+                    .entry(msg.author.id.to_string())
+                    .or_insert(Box::new(shakmaty::Chess::default()));
+                let pos = &**entry;
+                let mov = san.to_move(pos);
+                match mov {
+                    Ok(m) => {
+                        let pos2 = pos.clone().play(&m).unwrap();
+                        let fen = shakmaty::fen::epd(&pos2);
+                        if let Some(f) = fen.split(" ").next() {
+                            if let Err(why) = msg
+                                .reply(&ctx.http, format!("https://chess.dllu.net/{}.png", f))
+                                .await
+                            {
+                                println!("Error sending message: {:?}", why);
+                            }
+                        }
+                        **entry = pos2;
+                    }
+                    Err(m) => {
+                        if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
+                            println!("Error sending message: {:?}", why);
+                        }
+                    }
+                }
             }
         }
     }
@@ -106,6 +151,10 @@ async fn main() {
         .event_handler(handler)
         .await
         .expect("Err creating client");
+    {
+        let mut data = client.data.write().await;
+        data.insert::<ChessGame>(Arc::new(RwLock::new(HashMap::default())));
+    }
 
     // Finally, start a single shard, and start listening to events.
     //
