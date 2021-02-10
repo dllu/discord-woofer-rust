@@ -7,6 +7,7 @@ extern crate url;
 #[macro_use]
 extern crate serde;
 
+use anyhow::Result;
 use regex::Regex;
 use serenity::{
     async_trait,
@@ -27,6 +28,51 @@ struct Handler {
 struct ChessGame;
 impl TypeMapKey for ChessGame {
     type Value = Arc<RwLock<HashMap<String, Box<shakmaty::Chess>>>>;
+}
+
+async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
+    let san_str = &msg.content[12..];
+    let san: shakmaty::san::San = san_str.parse()?;
+    let game_lock = {
+        let data_read = ctx.data.read().await;
+        data_read
+            .get::<ChessGame>()
+            .expect("Expected ChessGame")
+            .clone()
+    };
+    {
+        let mut map = game_lock.write().await;
+        let entry = map
+            .entry(msg.author.id.to_string())
+            .or_insert(Box::new(shakmaty::Chess::default()));
+        let pos = &**entry;
+        let mov = san.to_move(pos)?;
+        if let Ok(p) = pos.clone().play(&mov) {
+            let fen = shakmaty::fen::epd(&p);
+            if let Some(f) = fen.split(" ").next() {
+                let status: &str;
+
+                match p.outcome() {
+                    None => {
+                        **entry = p;
+                        status = "";
+                    }
+                    Some(outcome) => {
+                        match outcome {
+                            shakmaty::Outcome::Decisive { winner: w } => match w {
+                                shakmaty::Color::White => status = "White wins!",
+                                shakmaty::Color::Black => status = "White wins!",
+                            },
+                            shakmaty::Outcome::Draw => status = "Draw!",
+                        }
+                        **entry = shakmaty::Chess::default();
+                    }
+                }
+                return Ok(format!("{} https://chess.dllu.net/{}.png", status, f));
+            }
+        }
+    }
+    Ok("Illegal move!!!!!".to_string())
 }
 
 #[async_trait]
@@ -79,64 +125,16 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
-            let san_str = &content[12..];
-            let san_res = san_str.parse();
-            let san: shakmaty::san::San;
-            match san_res {
+            let res = chess(&ctx, &msg).await;
+            match res {
                 Ok(s) => {
-                    san = s;
-                }
-                Err(_) => {
-                    if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
+                    if let Err(why) = msg.reply(&ctx.http, s).await {
                         println!("Error sending message: {:?}", why);
                     }
-                    return;
                 }
-            }
-            let game_lock = {
-                let data_read = ctx.data.read().await;
-                data_read
-                    .get::<ChessGame>()
-                    .expect("Expected ChessGame")
-                    .clone()
-            };
-            {
-                let mut map = game_lock.write().await;
-                let entry = map
-                    .entry(msg.author.id.to_string())
-                    .or_insert(Box::new(shakmaty::Chess::default()));
-                let pos = &**entry;
-                let mov = san.to_move(pos);
-                match mov {
-                    Ok(m) => {
-                        let pos2 = pos.clone().play(&m);
-                        match pos2 {
-                            Ok(p) => {
-                                let fen = shakmaty::fen::epd(&p);
-                                **entry = p;
-                                if let Some(f) = fen.split(" ").next() {
-                                    if let Err(why) = msg
-                                        .reply(
-                                            &ctx.http,
-                                            format!("https://chess.dllu.net/{}.png", f),
-                                        )
-                                        .await
-                                    {
-                                        println!("Error sending message: {:?}", why);
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
-                                    println!("Error sending message: {:?}", why);
-                                }
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!!").await {
-                            println!("Error sending message: {:?}", why);
-                        }
+                Err(_) => {
+                    if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!").await {
+                        println!("Error sending message: {:?}", why);
                     }
                 }
             }
