@@ -42,7 +42,7 @@ impl EventHandler for Handler {
         }
         lazy_static! {
             static ref WOOF_RE: Regex = Regex::new(
-                r"^((oua+f+\s*)+|(w(a|o|0|u)+r*f\s*)+|(aw+(o|0)+\s*)+|(b(a|o)+rk\s*)+)+!*$"
+                r"^((oua+f+\s*)+|(w(a|o|0|u)+r*f\s*)+|(aw+(o|0)+\s*)+|(b(a|o)+rk\s*)+|(汪\s*)+|(ワン\s*)+|(わん\s*)+|(гав\s*)+)+(!|！)*$"
             )
             .unwrap();
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
