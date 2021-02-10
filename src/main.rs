@@ -51,6 +51,14 @@ impl EventHandler for Handler {
             if let Err(why) = msg.channel_id.say(&ctx.http, puppywhy::why()).await {
                 println!("Error sending message: {:?}", why);
             }
+        } else if lower == "puppy how" {
+            if let Err(why) = msg
+                .channel_id
+                .say(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
+                .await
+            {
+                println!("Error sending message: {:?}", why);
+            }
         } else if WEATHER_RE.is_match(&lower) {
             let address = &lower[14..];
             let location = puppyweather::geocode(address.to_string(), &self.google_maps_token)
