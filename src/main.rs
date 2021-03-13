@@ -16,6 +16,7 @@ use serenity::{
 };
 use std::{collections::HashMap, env, sync::Arc};
 
+mod puppystonk;
 mod puppyweather;
 mod puppywhy;
 use shakmaty::Position;
@@ -92,6 +93,7 @@ impl EventHandler for Handler {
             )
             .unwrap();
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
+            static ref STONK_RE: Regex = Regex::new(r"^puppy stonk\s\w+").unwrap();
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
         }
         let content = &msg.content;
@@ -109,6 +111,12 @@ impl EventHandler for Handler {
                 .reply(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
                 .await
             {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if STONK_RE.is_match(&lower) {
+            let ticker = &lower[12..];
+            let stonk = puppystonk::stonk(&ticker).await.unwrap();
+            if let Err(why) = msg.reply(&ctx.http, &stonk).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if WEATHER_RE.is_match(&lower) {
