@@ -312,7 +312,7 @@ fn present_verb() -> String {
         (1, "satisfy"),
         (1, "uplift"),
         (1, "vanquish"),
-        (1, "vapoorise")
+        (1, "vaporise")
     )
 }
 
