@@ -70,7 +70,7 @@ pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwe
 pub fn weather_string(address: String, location: &Location, weather: Weather) -> String {
     let emo = emoji(&weather.weather[0].icon);
     format!(
-        "weather in {} ({}, {}): {}. Temperature {:.2} K. Humidity {:.1}%. {}",
+        "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} K. Humidity {:.1}%. {}",
         address,
         location.lat,
         location.lng,

@@ -62,7 +62,7 @@ async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
                         match outcome {
                             shakmaty::Outcome::Decisive { winner: w } => match w {
                                 shakmaty::Color::White => status = "White wins!",
-                                shakmaty::Color::Black => status = "White wins!",
+                                shakmaty::Color::Black => status = "Black wins!",
                             },
                             shakmaty::Outcome::Draw => status = "Draw!",
                         }
