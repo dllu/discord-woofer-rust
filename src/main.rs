@@ -28,7 +28,7 @@ struct Handler {
 
 struct ChessGame;
 impl TypeMapKey for ChessGame {
-    type Value = Arc<RwLock<HashMap<String, Box<shakmaty::Chess>>>>;
+    type Value = Arc<RwLock<HashMap<String, Box<(shakmaty::Chess, Option<String>)>>>>;
 }
 
 async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
@@ -42,11 +42,17 @@ async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
             .clone()
     };
     {
+        let current_player = msg.author.id.to_string();
         let mut map = game_lock.write().await;
         let entry = map
-            .entry(msg.author.id.to_string())
-            .or_insert_with(|| Box::new(shakmaty::Chess::default()));
-        let pos = &**entry;
+            .entry(msg.channel_id.to_string())
+            .or_insert_with(|| Box::new((shakmaty::Chess::default(), None)));
+        if let Some(previous_player) = &(entry.1) {
+            if previous_player == &current_player {
+                return Ok("Someone else has to make a move first!!!!!".to_string());
+            }
+        }
+        let pos = &entry.0;
         let mov = san.to_move(pos)?;
         if let Ok(p) = pos.clone().play(&mov) {
             let fen = shakmaty::fen::epd(&p);
@@ -55,7 +61,7 @@ async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
 
                 match p.outcome() {
                     None => {
-                        **entry = p;
+                        **entry = (p, Some(current_player));
                         status = "";
                     }
                     Some(outcome) => {
@@ -66,7 +72,7 @@ async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
                             },
                             shakmaty::Outcome::Draw => status = "Draw!",
                         }
-                        **entry = shakmaty::Chess::default();
+                        **entry = (shakmaty::Chess::default(), None);
                     }
                 }
                 return Ok(format!("{} https://chess.dllu.net/{}.png", status, f));
