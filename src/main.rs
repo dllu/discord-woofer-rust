@@ -113,7 +113,7 @@ impl EventHandler for Handler {
             }
         } else if STONK_RE.is_match(&lower) {
             let ticker = &lower[12..];
-            let stonk = puppystonk::stonk(&ticker).await.unwrap();
+            let stonk = puppystonk::stonk(ticker).await.unwrap();
             if let Err(why) = msg.reply(&ctx.http, &stonk).await {
                 println!("Error sending message: {:?}", why);
             }

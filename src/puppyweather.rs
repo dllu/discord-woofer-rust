@@ -23,7 +23,7 @@ pub struct Geocode {
 pub async fn geocode(address: String, apikey: &str) -> Result<Location, reqwest::Error> {
     let encoded: String = url::form_urlencoded::Serializer::new(String::new())
         .append_pair("address", &address)
-        .append_pair("key", &apikey)
+        .append_pair("key", apikey)
         .finish();
     let geocode_url = format!(
         "https://maps.googleapis.com/maps/api/geocode/json?{}",
