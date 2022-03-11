@@ -1,6 +1,4 @@
-extern crate reqwest;
-extern crate url;
-
+use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 struct Stonk {
     chart: Chart,
@@ -13,7 +11,7 @@ struct Chart {
 
 #[derive(Deserialize, Debug)]
 struct Result {
-    timestamp: Vec<i64>,
+    // timestamp: Vec<i64>,
     indicators: Indicators,
 }
 
@@ -24,10 +22,10 @@ struct Indicators {
 
 #[derive(Deserialize, Debug)]
 struct Quote {
-    open: Vec<Option<f64>>,
+    // open: Vec<Option<f64>>,
     close: Vec<Option<f64>>,
-    low: Vec<Option<f64>>,
-    high: Vec<Option<f64>>,
+    // low: Vec<Option<f64>>,
+    // high: Vec<Option<f64>>,
 }
 
 pub async fn stonk(ticker: &str) -> anyhow::Result<String> {

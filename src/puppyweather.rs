@@ -1,6 +1,4 @@
-extern crate reqwest;
-extern crate url;
-
+use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 pub struct Location {
     lat: f64,
@@ -83,24 +81,25 @@ pub fn weather_string(address: String, location: &Location, weather: Weather) ->
 
 fn emoji(icon: &str) -> String {
     match icon {
-        "01d" => "☀️".to_string(),
-        "01n" => "🌃".to_string(),
-        "02d" => "⛅".to_string(),
-        "02n" => "☁️".to_string(),
-        "03d" => "☁️".to_string(),
-        "03n" => "☁️".to_string(),
-        "04d" => "⛅".to_string(),
-        "04n" => "☁️".to_string(),
-        "09d" => "🌧️".to_string(),
-        "09n" => "🌧️".to_string(),
-        "10d" => "🌧️".to_string(),
-        "10n" => "🌧️".to_string(),
-        "11d" => "🌩️".to_string(),
-        "11n" => "🌩️".to_string(),
-        "13d" => "🌨️".to_string(),
-        "13n" => "🌨️".to_string(),
-        "50d" => "🌫️".to_string(),
-        "50n" => "🌫️".to_string(),
-        _ => "".to_string(),
+        "01d" => "☀️",
+        "01n" => "🌃",
+        "02d" => "⛅",
+        "02n" => "☁️",
+        "03d" => "☁️",
+        "03n" => "☁️",
+        "04d" => "⛅",
+        "04n" => "☁️",
+        "09d" => "🌧️",
+        "09n" => "🌧️",
+        "10d" => "🌧️",
+        "10n" => "🌧️",
+        "11d" => "🌩️",
+        "11n" => "🌩️",
+        "13d" => "🌨️",
+        "13n" => "🌨️",
+        "50d" => "🌫️",
+        "50n" => "🌫️",
+        _ => "",
     }
+    .to_string()
 }

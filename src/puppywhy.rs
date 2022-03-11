@@ -1,4 +1,3 @@
-extern crate rand;
 use rand::distributions::{weighted::WeightedIndex, Distribution};
 
 macro_rules! weighted_choice_fn {

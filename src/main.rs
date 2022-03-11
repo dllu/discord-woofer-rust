@@ -1,13 +1,5 @@
-#[macro_use]
-extern crate lazy_static;
-extern crate regex;
-extern crate reqwest;
-extern crate serenity;
-extern crate url;
-#[macro_use]
-extern crate serde;
-
 use anyhow::Result;
+use lazy_static::lazy_static;
 use regex::Regex;
 use serenity::{
     async_trait,
