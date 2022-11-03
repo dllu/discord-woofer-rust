@@ -10,6 +10,7 @@ lazy_static = "1.4.0"
 rand = "0.8.3"
 regex = "1.4.3"
 reqwest = "0.11.0"
+rusty-money = "0.4.1"
 url = "2.2.0"
 serenity = { version = "0.10", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }
 serde = "1.0"

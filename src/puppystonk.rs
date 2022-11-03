@@ -1,4 +1,6 @@
+use rusty_money::{Money, iso};
 use serde::Deserialize;
+
 #[derive(Deserialize, Debug)]
 struct Stonk {
     chart: Chart,
@@ -13,8 +15,18 @@ struct Chart {
 struct Result {
     // timestamp: Vec<i64>,
     indicators: Indicators,
+    meta: Meta,
 }
 
+#[derive(Deserialize, Debug)]
+struct Meta {
+    currency: str,
+    regularMarketPrice: f64, // seems to come pre-rounded
+}
+
+
+// obviated by use of regularMarketPrice
+/*
 #[derive(Deserialize, Debug)]
 struct Indicators {
     quote: Vec<Quote>,
@@ -27,21 +39,29 @@ struct Quote {
     // low: Vec<Option<f64>>,
     // high: Vec<Option<f64>>,
 }
+*/
 
 pub async fn stonk(ticker: &str) -> anyhow::Result<String> {
+    // TODO use a source that has not been officially discontinued
     let stonk_url = format!(
         "https://query1.finance.yahoo.com/v8/finance/chart/{}",
         ticker
     );
-    let stonk_response: Stonk = reqwest::get(&stonk_url).await?.json().await?;
+    let stonk_result: Result = reqwest::get(&stonk_url).await?.json().await?
+        .chart.result[0];
+
+    let currency = iso::find(&stonk_result.meta.currency)
+        .expect("currency code missing from response metadata");
+
+    let price = Money::from_str(
+        &format!("{}", stonk_result.meta.regularMarketPrice),
+        currency).unwrap();
+
+    // let formatted = Money::from_str()
     let out = format!(
-        "{}: ${:.2}",
+        "{}: {}",
         ticker,
-        stonk_response.chart.result[0].indicators.quote[0]
-            .close
-            .last()
-            .expect("must have stonk")
-            .expect("wtf")
+        price
     );
     Ok(out)
 }
