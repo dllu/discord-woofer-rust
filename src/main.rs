@@ -8,6 +8,7 @@ use serenity::{
 use std::{collections::HashMap, env, sync::Arc};
 
 mod puppychess;
+mod puppygpt;
 mod puppystonk;
 mod puppyweather;
 mod puppywhy;
@@ -15,6 +16,7 @@ mod puppywhy;
 struct Handler {
     openweather_token: String,
     google_maps_token: String,
+    groq_token: String,
 }
 
 #[async_trait]
@@ -36,6 +38,7 @@ impl EventHandler for Handler {
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
             static ref STONK_RE: Regex = Regex::new(r"^puppy stonk\s\w+").unwrap();
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
+            static ref GPT_RE: Regex = Regex::new(r"^puppy gpt\s\w*").unwrap();
         }
         let content = &msg.content;
         let lower = content.to_lowercase();
@@ -96,6 +99,11 @@ impl EventHandler for Handler {
                     }
                 }
             }
+        } else if GPT_RE.is_match(&lower) {
+            let response = puppygpt::gpt(&content[9..], &self.groq_token).await.unwrap();
+            if let Err(why) = msg.reply(&ctx.http, response).await {
+                println!("Error sending message: {:?}", why);
+            }
         }
     }
 
@@ -118,6 +126,8 @@ async fn main() {
         env::var("FORECAST_TOKEN").expect("Expected $FORECAST_TOKEN in the environment");
     let google_maps_token =
         env::var("GOOGLE_MAPS_TOKEN").expect("Expected $GOOGLE_MAPS_TOKEN in the environment");
+    let groq_token =
+        env::var("GROQ_TOKEN").expect("Expected $GROQ_TOKEN in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
@@ -128,6 +138,7 @@ async fn main() {
     let handler = Handler {
         openweather_token,
         google_maps_token,
+        groq_token,
     };
 
     let mut client = Client::builder(&discord_token, intents)
