@@ -1,4 +1,3 @@
-use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serenity::{
@@ -8,70 +7,14 @@ use serenity::{
 };
 use std::{collections::HashMap, env, sync::Arc};
 
+mod puppychess;
 mod puppystonk;
 mod puppyweather;
 mod puppywhy;
-use shakmaty::Position;
 
 struct Handler {
     openweather_token: String,
     google_maps_token: String,
-}
-
-struct ChessGame;
-impl TypeMapKey for ChessGame {
-    type Value = Arc<RwLock<HashMap<String, Box<(shakmaty::Chess, Option<String>)>>>>;
-}
-
-async fn chess(ctx: &Context, msg: &Message) -> Result<String> {
-    let san_str = &msg.content[12..];
-    let san: shakmaty::san::San = san_str.parse()?;
-    let game_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<ChessGame>()
-            .expect("Expected ChessGame")
-            .clone()
-    };
-    {
-        let current_player = msg.author.id.to_string();
-        let mut map = game_lock.write().await;
-        let entry = map
-            .entry(msg.channel_id.to_string())
-            .or_insert_with(|| Box::new((shakmaty::Chess::default(), None)));
-        if let Some(previous_player) = &(entry.1) {
-            if previous_player == &current_player {
-                return Ok("Someone else has to make a move first!!!!!".to_string());
-            }
-        }
-        let pos = &entry.0;
-        let mov = san.to_move(pos)?;
-        if let Ok(p) = pos.clone().play(&mov) {
-            let fen = shakmaty::fen::epd(&p);
-            if let Some(f) = fen.split(' ').next() {
-                let status: &str;
-
-                match p.outcome() {
-                    None => {
-                        **entry = (p, Some(current_player));
-                        status = "";
-                    }
-                    Some(outcome) => {
-                        match outcome {
-                            shakmaty::Outcome::Decisive { winner: w } => match w {
-                                shakmaty::Color::White => status = "White wins!",
-                                shakmaty::Color::Black => status = "Black wins!",
-                            },
-                            shakmaty::Outcome::Draw => status = "Draw!",
-                        }
-                        **entry = (shakmaty::Chess::default(), None);
-                    }
-                }
-                return Ok(format!("{} https://chess.dllu.net/{}.png", status, f));
-            }
-        }
-    }
-    Ok("Illegal move!!!!!".to_string())
 }
 
 #[async_trait]
@@ -82,7 +25,7 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.is_own(&ctx.cache).await {
+        if msg.is_own(&ctx.cache) {
             return;
         }
         lazy_static! {
@@ -131,16 +74,25 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
-            let res = chess(&ctx, &msg).await;
+            let res = puppychess::chess(&ctx, &msg).await;
             match res {
                 Ok(s) => {
                     if let Err(why) = msg.reply(&ctx.http, s).await {
                         println!("Error sending message: {:?}", why);
                     }
                 }
-                Err(_) => {
-                    if let Err(why) = msg.reply(&ctx.http, "Illegal move!!!!!").await {
-                        println!("Error sending message: {:?}", why);
+                Err(why2) => {
+                    println!("Error making chess move: {:?}", why2);
+                    let res_im = puppychess::chess_illegal_move(&ctx, &msg).await;
+                    match res_im {
+                        Ok(s_im) => {
+                            if let Err(why) = msg.reply(&ctx.http, s_im).await {
+                                println!("Error sending message: {:?}", why);
+                            }
+                        }
+                        Err(why_im) => {
+                            println!("Error making chess move: {:?}", why_im);
+                        }
                     }
                 }
             }
@@ -166,6 +118,9 @@ async fn main() {
         env::var("FORECAST_TOKEN").expect("Expected $FORECAST_TOKEN in the environment");
     let google_maps_token =
         env::var("GOOGLE_MAPS_TOKEN").expect("Expected $GOOGLE_MAPS_TOKEN in the environment");
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT;
 
     // Create a new instance of the Client, logging in as a bot. This will
     // automatically prepend your bot token with "Bot ", which is a requirement
@@ -175,13 +130,13 @@ async fn main() {
         google_maps_token,
     };
 
-    let mut client = Client::builder(&discord_token)
+    let mut client = Client::builder(&discord_token, intents)
         .event_handler(handler)
         .await
         .expect("Err creating client");
     {
         let mut data = client.data.write().await;
-        data.insert::<ChessGame>(Arc::new(RwLock::new(HashMap::default())));
+        data.insert::<puppychess::ChessGame>(Arc::new(RwLock::new(HashMap::default())));
     }
 
     // Finally, start a single shard, and start listening to events.
