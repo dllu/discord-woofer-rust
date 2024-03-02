@@ -58,12 +58,15 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if STONK_RE.is_match(&lower) {
+            let typing = msg.channel_id.start_typing(&ctx.http);
             let ticker = &lower[12..];
             let stonk = puppystonk::stonk(ticker).await.unwrap();
+            typing.stop();
             if let Err(why) = msg.reply(&ctx.http, &stonk).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if WEATHER_RE.is_match(&lower) {
+            let typing = msg.channel_id.start_typing(&ctx.http);
             let address = &lower[14..];
             // TODO: error handlin
             let location = puppyweather::geocode(address.to_string(), &self.google_maps_token)
@@ -73,6 +76,7 @@ impl EventHandler for Handler {
                 .await
                 .unwrap();
             let response = puppyweather::weather_string(address.to_string(), &location, weather);
+            typing.stop();
             if let Err(why) = msg.reply(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
             }
@@ -100,7 +104,10 @@ impl EventHandler for Handler {
                 }
             }
         } else if GPT_RE.is_match(&lower) {
+            let typing = msg.channel_id.start_typing(&ctx.http);
             let response = puppygpt::gpt(&content[9..], &self.groq_token).await.unwrap();
+            typing.stop();
+
             if let Err(why) = msg.reply(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
             }
