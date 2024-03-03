@@ -145,7 +145,7 @@ fn replace_emojis(text: &str) -> String {
     // This regex pattern is a very simplistic approximation and does not cover all emoji cases.
     let emoji_pattern = r"(?:[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+)";
     let re = Regex::new(emoji_pattern).unwrap();
-    re.replace_all(text, "<:woof:441843756040323092>")
+    re.replace_all(text, ":woof:")
         .into_owned()
 }
 
@@ -160,10 +160,10 @@ fn replace_discord_emojis(input: &str) -> String {
     lazy_static! {
         static ref MAPPINGS: HashMap<&'static str, &'static str> = {
             let mut m = HashMap::new();
-            m.insert("woof", "441843756040323092");
-            m.insert("awoo", "984697374402289705");
-            m.insert("puphooray", "672916714589126663");
-            m.insert("petpup", "915489497490292757");
+            m.insert("woof", "<:woof:441843756040323092>");
+            m.insert("awoo", "<:awoo:984697374402289705>");
+            m.insert("puphooray", "<:puphooray:672916714589126663>");
+            m.insert("petpup", "<a:petpup:915489497490292757>");
             m
         };
         static ref RE: Regex = Regex::new(r":([a-zA-Z0-9_]+):").unwrap();
@@ -171,8 +171,8 @@ fn replace_discord_emojis(input: &str) -> String {
 
     RE.replace_all(input, |caps: &regex::Captures| {
         if let Some(word) = caps.get(1) {
-            if let Some(&large_integer) = MAPPINGS.get(word.as_str()) {
-                return format!("<:{}:{}>", word.as_str(), large_integer);
+            if let Some(&discord_emoji) = MAPPINGS.get(word.as_str()) {
+                return discord_emoji.to_string()
             }
         }
         caps.get(0).unwrap().as_str().to_string()
