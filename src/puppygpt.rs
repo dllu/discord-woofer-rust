@@ -29,7 +29,7 @@ pub async fn listen_message(ctx: &Context, msg: &serenity::all::Message) {
     let mut map = convo_lock.write().await;
     let entry = map
         .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(6)));
+        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(12)));
 
     let _ = (**entry).push_overwrite(msg.clone());
 }
