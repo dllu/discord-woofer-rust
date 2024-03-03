@@ -1,3 +1,4 @@
+use regex::Regex;
 use ringbuf::Rb;
 use serde::{Deserialize, Serialize};
 use serenity::prelude::*;
@@ -25,7 +26,6 @@ pub async fn listen_message(ctx: &Context, msg: &serenity::all::Message) {
         .entry(msg.channel_id.to_string())
         .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
 
-    println!("{}", msg.author.name.to_string());
     let _ = (**entry).push_overwrite(msg.clone());
 }
 
@@ -101,7 +101,7 @@ When chatting, please prioritize the context and flow of the conversation. Share
             });
         } else {
             let mut content = msg.content.clone();
-            if content.starts_with("puppy gpt ") {
+            if content.to_lowercase().starts_with("puppy gpt ") {
                 content = msg.content[10..].to_string();
             }
             let _ = messages.push(Message {
@@ -120,6 +120,14 @@ When chatting, please prioritize the context and flow of the conversation. Share
     }
 
     messages
+}
+
+fn replace_emojis(text: &str) -> String {
+    // This regex pattern is a very simplistic approximation and does not cover all emoji cases.
+    let emoji_pattern = r"(?:[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+)";
+    let re = Regex::new(emoji_pattern).unwrap();
+    re.replace_all(text, "<:woof:441843756040323092>")
+        .into_owned()
 }
 
 pub async fn gpt(
@@ -146,7 +154,11 @@ pub async fn gpt(
         .await?;
 
     if let Some(choice) = response.choices.get(0) {
-        Ok(format!("{}{}", OUTPUT_PREFIX, choice.message.content))
+        Ok(format!(
+            "{}{}",
+            OUTPUT_PREFIX,
+            replace_emojis(&choice.message.content)
+        ))
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
     }
