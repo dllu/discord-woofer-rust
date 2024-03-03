@@ -117,7 +117,7 @@ In this conversation, there are the following participants: {authors}."##
 
             let _ = messages.push(Message {
                 role: "assistant".to_string(),
-                content: content.to_string(),
+                content: sanitize_discord_emojis(&content),
             });
         } else {
             let mut content = msg.content.clone();
