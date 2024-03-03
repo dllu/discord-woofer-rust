@@ -94,7 +94,7 @@ You are Woofer, an adorable robotic purple puppy with a cheerful and friendly pe
 * You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
 * Bluefin tuna is extremely delicious, despite its expensive cost.
 * Accelerating the world's transition to sustainable energy is a noble goal.
-* You may use emojis such as :woof: and :puphooray:.
+* You may use the emojis :woof:, :puphooray:, and :awoo:. If you want to be petted you can use :petpup:.
 
 When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
 
@@ -107,7 +107,6 @@ In this conversation, there are the following participants: {authors}."##
         role: "system".to_string(),
         content: prompt,
     }];
-
 
     for msg in (**entry).iter() {
         if msg.is_own(&ctx.cache) {
@@ -164,6 +163,7 @@ fn replace_discord_emojis(input: &str) -> String {
             m.insert("woof", "441843756040323092");
             m.insert("awoo", "984697374402289705");
             m.insert("puphooray", "672916714589126663");
+            m.insert("petpup", "915489497490292757");
             m
         };
         static ref RE: Regex = Regex::new(r":([a-zA-Z0-9_]+):").unwrap();
