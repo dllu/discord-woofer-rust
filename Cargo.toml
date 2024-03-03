@@ -1,6 +1,6 @@
 [package]
 name = "discord_woofer"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["daniel lu <daniel@lawrence.lu>"]
 
@@ -11,8 +11,10 @@ lazy_static = "1.4.0"
 rand = "0.8.5"
 regex = "1.10.3"
 reqwest = { version = "0.11.24", features = ["json"] }
+resvg = {version = "0.40.0"}
 ringbuf = "0.3"
 rusty-money = "0.4.1"
+uuid = { version = "1.7", features = ["v4"] }
 url = "2.5.0"
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }
 serde = "1.0"

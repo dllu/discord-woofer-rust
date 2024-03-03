@@ -89,22 +89,45 @@ fn plot_svg(result: &Result) -> anyhow::Result<String> {
     const WIDTH: i64 = 512;
     const HEIGHT: i64 = 256;
     let mut svg_out: String =
-        format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" fill="#000">"##).to_string();
-    svg_out.push_str(r##"<polyline fill="none" stroke="#f00" points=""##);
+        format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}">"##);
+    let color = if result.meta.regular_market_price > result.meta.previous_close {
+        "#3c1"
+    } else {
+        "#e21"
+    };
+    svg_out.push_str(&format!(r##"<polyline fill="none" stroke="{color}" points=""##).to_string());
 
     for pair in result.timestamp.iter().zip(quote.iter()) {
         if let (Some(timestamp), Some(close)) = pair {
             let x = (timestamp - min_ts) * WIDTH / (max_ts - min_ts);
-            let y = (close - min_quote) * (HEIGHT as f64) / (max_quote - min_quote);
+            let y = (HEIGHT as f64) * (0.95 - 0.9 * (close - min_quote) / (max_quote - min_quote));
             svg_out.push_str(&format!("{},{} ", x, y).to_string());
-            println!("{} {}", timestamp, close);
         }
     }
     svg_out.push_str(r##""/></svg>"##);
     Ok(svg_out)
 }
 
-pub async fn stonk(ticker: &str) -> anyhow::Result<String> {
+fn save_png(svg: &str) -> anyhow::Result<String> {
+    let fontdb = resvg::usvg::fontdb::Database::new();
+    let opt = resvg::usvg::Options::default();
+    let rtree = resvg::usvg::Tree::from_str(svg, &opt, &fontdb)?;
+
+    let pixmap_size = rtree.size();
+    let mut pixmap =
+        resvg::tiny_skia::Pixmap::new(pixmap_size.width() as u32, pixmap_size.height() as u32).ok_or_else(||anyhow!("couldn't allocate pixmap"))?;
+
+    resvg::render(
+        &rtree,
+        resvg::tiny_skia::Transform::identity(),
+        &mut pixmap.as_mut(),
+    );
+    let filename = format!("{}.png", uuid::Uuid::new_v4()).to_string();
+    pixmap.save_png(&filename)?;
+    Ok(filename)
+}
+
+pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String)> {
     // TODO use a source that has not been officially discontinued
     let stonk_url = format!(
         "https://query1.finance.yahoo.com/v8/finance/chart/{}",
@@ -118,7 +141,8 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<String> {
         .chart
         .result[0];
 
-    plot_svg(&stonk_result);
+    let svg = plot_svg(&stonk_result)?;
+    let filename = save_png(&svg)?;
     let currency = iso::find(&stonk_result.meta.currency)
         .expect("currency code missing from response metadata");
 
@@ -132,5 +156,5 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<String> {
         "{}: {}{} {}",
         ticker, currency.symbol, stonk_result.meta.regular_market_price, emoji
     );
-    Ok(out)
+    Ok((out, filename))
 }
