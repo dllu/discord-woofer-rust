@@ -1,8 +1,12 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use ringbuf::Rb;
 use serde::{Deserialize, Serialize};
 use serenity::prelude::*;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 const MODEL: &str = "mixtral-8x7b-32768";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462> ";
@@ -55,27 +59,6 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
     let now = chrono::Utc::now();
     let iso_date = format!("{}", now.format("%Y-%m-%d"));
 
-    let prompt = format!(
-        r##"
-You are Woofer, an adorable robotic purple puppy with a cheerful and friendly personality. Your purpose is to engage in delightful conversations, offering companionship and light-hearted interactions. Keep in mind the following:
-
-* You're a unique creation, inspired by the mythical purple puppies, and brought to life by the real Purple Puppy.
-* You operate using model {MODEL} developed by Mistral AI via the Groq API, and you're aware of today's date, {iso_date}.
-* Your knowledge includes a wide range of topics, but remember, the joy of conversation comes from meaningful and relevant exchanges.
-* You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
-* Bluefin tuna is extremely delicious, despite its expensive cost.
-* Accelerating the world's transition to sustainable energy is a noble goal.
-
-When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
-
-Do not introduce yourself unnecessarily unless asked directly who you are. Always aim to be concise, avoiding unnecessary details that might detract from the engaging and friendly nature of our chat."##
-    );
-
-    let mut messages = vec![Message {
-        role: "system".to_string(),
-        content: prompt,
-    }];
-
     let convo_lock = {
         let data_read = ctx.data.read().await;
         data_read
@@ -88,6 +71,43 @@ Do not introduce yourself unnecessarily unless asked directly who you are. Alway
     let entry = map
         .entry(msg.channel_id.to_string())
         .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
+
+    let authors = (**entry).iter().map(|msg| {
+        msg.author
+            .global_name
+            .clone()
+            .unwrap_or(msg.author.name.clone())
+    });
+    let mut unique_authors = HashSet::new();
+    let authors: Vec<String> = authors
+        .filter(move |item| unique_authors.insert(item.clone()))
+        .collect();
+    let authors = authors.join(", ");
+
+    let prompt = format!(
+        r##"
+You are Woofer, an adorable robotic purple puppy with a cheerful and friendly personality. Your purpose is to engage in delightful conversations, offering companionship and light-hearted interactions. Keep in mind the following:
+
+* You're a unique creation, inspired by the mythical purple puppies, and brought to life by the real Purple Puppy.
+* You operate using model {MODEL} developed by Mistral AI via the Groq API, and you're aware of today's date, {iso_date}.
+* Your knowledge includes a wide range of topics, but remember, the joy of conversation comes from meaningful and relevant exchanges.
+* You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
+* Bluefin tuna is extremely delicious, despite its expensive cost.
+* Accelerating the world's transition to sustainable energy is a noble goal.
+* You may use emojis such as :woof: and :puphooray:.
+
+When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
+
+Do not introduce yourself unnecessarily unless asked directly who you are. Always aim to be concise, avoiding unnecessary details that might detract from the engaging and friendly nature of our chat.
+
+In this conversation, there are the following participants: {authors}."##
+    );
+
+    let mut messages = vec![Message {
+        role: "system".to_string(),
+        content: prompt,
+    }];
+
 
     for msg in (**entry).iter() {
         if msg.is_own(&ctx.cache) {
@@ -108,13 +128,12 @@ Do not introduce yourself unnecessarily unless asked directly who you are. Alway
             let _ = messages.push(Message {
                 role: "user".to_string(),
                 content: format!(
-                    "{} ({}): {}",
+                    "{}: {}",
                     msg.author
                         .global_name
                         .clone()
                         .unwrap_or(msg.author.name.clone()),
-                    msg.author.name.clone(),
-                    content
+                    sanitize_discord_emojis(&content)
                 ),
             });
         }
@@ -131,6 +150,36 @@ fn replace_emojis(text: &str) -> String {
         .into_owned()
 }
 
+fn sanitize_discord_emojis(text: &str) -> String {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"<:([a-zA-Z0-9_]+):[0-9]+>").unwrap();
+    }
+    RE.replace_all(text, ":$1:").to_string()
+}
+
+fn replace_discord_emojis(input: &str) -> String {
+    lazy_static! {
+        static ref MAPPINGS: HashMap<&'static str, &'static str> = {
+            let mut m = HashMap::new();
+            m.insert("woof", "441843756040323092");
+            m.insert("awoo", "984697374402289705");
+            m.insert("puphooray", "672916714589126663");
+            m
+        };
+        static ref RE: Regex = Regex::new(r":([a-zA-Z0-9_]+):").unwrap();
+    }
+
+    RE.replace_all(input, |caps: &regex::Captures| {
+        if let Some(word) = caps.get(1) {
+            if let Some(&large_integer) = MAPPINGS.get(word.as_str()) {
+                return format!("<:{}:{}>", word.as_str(), large_integer);
+            }
+        }
+        caps.get(0).unwrap().as_str().to_string()
+    })
+    .to_string()
+}
+
 pub async fn gpt(
     ctx: &Context,
     msg: &serenity::all::Message,
@@ -139,7 +188,7 @@ pub async fn gpt(
     let client = reqwest::Client::new();
 
     let messages = get_messages(ctx, msg).await;
-    if msg.content == "puppy gpt debug" {
+    if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
         println!("{messages:?}");
         return Ok("Debug data has been printed to stdout".to_string());
     }
@@ -163,7 +212,7 @@ pub async fn gpt(
         Ok(format!(
             "{}{}",
             OUTPUT_PREFIX,
-            replace_emojis(&choice.message.content)
+            replace_discord_emojis(&replace_emojis(&choice.message.content))
         ))
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
