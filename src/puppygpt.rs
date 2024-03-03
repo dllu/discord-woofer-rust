@@ -151,7 +151,7 @@ fn replace_emojis(text: &str) -> String {
 
 fn sanitize_discord_emojis(text: &str) -> String {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"<:([a-zA-Z0-9_]+):[0-9]+>").unwrap();
+        static ref RE: Regex = Regex::new(r"<a?:([a-zA-Z0-9_]+):[0-9]+>").unwrap();
     }
     RE.replace_all(text, ":$1:").to_string()
 }
