@@ -6,10 +6,12 @@ authors = ["daniel lu <daniel@lawrence.lu>"]
 
 [dependencies]
 anyhow = "1.0"
+chrono = "0.4"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 regex = "1.10.3"
 reqwest = { version = "0.11.24", features = ["json"] }
+ringbuf = "0.3"
 rusty-money = "0.4.1"
 url = "2.5.0"
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }

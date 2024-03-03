@@ -10,7 +10,7 @@ impl TypeMapKey for ChessGame {
 
 pub async fn chess_illegal_move(
     ctx: &serenity::prelude::Context,
-    msg: &serenity::model::channel::Message,
+    msg: &serenity::all::Message,
 ) -> Result<String> {
     let game_lock = {
         let data_read = ctx.data.read().await;
@@ -42,8 +42,8 @@ pub async fn chess_illegal_move(
 }
 
 pub async fn chess(
-    ctx: &serenity::prelude::Context,
-    msg: &serenity::model::channel::Message,
+    ctx: &Context,
+    msg: &serenity::all::Message,
 ) -> Result<String> {
     let san_str = &msg.content[12..];
     let san: shakmaty::san::San = san_str.parse()?;

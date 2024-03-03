@@ -27,9 +27,12 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
+        puppygpt::listen_message(&ctx, &msg).await;
+
         if msg.is_own(&ctx.cache) {
             return;
         }
+
         lazy_static! {
             static ref WOOF_RE: Regex = Regex::new(
                 r"^((oua+f+\s*)+|(w(a|o|0|u|🌕)+r*f\s*)+|(aw+(o|0|🌕)+\s*)+|(b(a|o)+rk\s*)+|(汪\s*)+|(ワン\s*)+|(わん\s*)+|(гав\s*)+|(uowhf\s*)+)+(!|！)*$"
@@ -105,7 +108,7 @@ impl EventHandler for Handler {
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
-            let response = puppygpt::gpt(&content[9..], &self.groq_token).await.unwrap();
+            let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await.unwrap();
             typing.stop();
 
             if let Err(why) = msg.reply(&ctx.http, response).await {
@@ -155,6 +158,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<puppychess::ChessGame>(Arc::new(RwLock::new(HashMap::default())));
+        data.insert::<puppygpt::Conversation>(Arc::new(RwLock::new(HashMap::default())));
     }
 
     // Finally, start a single shard, and start listening to events.
