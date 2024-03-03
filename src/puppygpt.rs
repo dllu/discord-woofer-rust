@@ -55,6 +55,25 @@ struct Payload {
     model: String,
 }
 
+fn author_name_from_msg(msg: &serenity::all::Message) -> String {
+    let mut author_name: String = msg
+        .author
+        .global_name
+        .clone()
+        .unwrap_or(msg.author.name.clone());
+
+    if let Some(member) = &msg.member {
+        if let Some(nick) = &member.nick {
+            author_name = nick.to_string();
+        }
+    }
+
+    if author_name == "Purple Puppy" && msg.author.name != "purplepuppy" {
+        return "Fake Deformed Purple Puppy".to_string();
+    }
+    author_name
+}
+
 async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Message> {
     let now = chrono::Utc::now();
     let iso_date = format!("{}", now.format("%Y-%m-%d"));
@@ -72,12 +91,7 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
         .entry(msg.channel_id.to_string())
         .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
 
-    let authors = (**entry).iter().map(|msg| {
-        msg.author
-            .global_name
-            .clone()
-            .unwrap_or(msg.author.name.clone())
-    });
+    let authors = (**entry).iter().map(author_name_from_msg);
     let mut unique_authors = HashSet::new();
     let authors: Vec<String> = authors
         .filter(move |item| unique_authors.insert(item.clone()))
@@ -128,10 +142,7 @@ In this conversation, there are the following participants: {authors}."##
                 role: "user".to_string(),
                 content: format!(
                     "{}: {}",
-                    msg.author
-                        .global_name
-                        .clone()
-                        .unwrap_or(msg.author.name.clone()),
+                    author_name_from_msg(msg),
                     sanitize_discord_emojis(&content)
                 ),
             });
@@ -145,8 +156,7 @@ fn replace_emojis(text: &str) -> String {
     // This regex pattern is a very simplistic approximation and does not cover all emoji cases.
     let emoji_pattern = r"(?:[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+)";
     let re = Regex::new(emoji_pattern).unwrap();
-    re.replace_all(text, ":woof:")
-        .into_owned()
+    re.replace_all(text, ":woof:").into_owned()
 }
 
 fn sanitize_discord_emojis(text: &str) -> String {
@@ -172,7 +182,7 @@ fn replace_discord_emojis(input: &str) -> String {
     RE.replace_all(input, |caps: &regex::Captures| {
         if let Some(word) = caps.get(1) {
             if let Some(&discord_emoji) = MAPPINGS.get(word.as_str()) {
-                return discord_emoji.to_string()
+                return discord_emoji.to_string();
             }
         }
         caps.get(0).unwrap().as_str().to_string()
