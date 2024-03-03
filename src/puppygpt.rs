@@ -139,6 +139,11 @@ pub async fn gpt(
     let client = reqwest::Client::new();
 
     let messages = get_messages(ctx, msg).await;
+    if msg.content == "puppy gpt debug" {
+        println!("{messages:?}");
+        return Ok("Debug data has been printed to stdout".to_string());
+    }
+
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
