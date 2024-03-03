@@ -8,7 +8,8 @@ use std::{
     sync::Arc,
 };
 
-const MODEL: &str = "mixtral-8x7b-32768";
+// const MODEL: &str = "mixtral-8x7b-32768";
+const MODEL: &str = "llama2-70b-4096";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462> ";
 
 pub struct Conversation;
@@ -28,7 +29,7 @@ pub async fn listen_message(ctx: &Context, msg: &serenity::all::Message) {
     let mut map = convo_lock.write().await;
     let entry = map
         .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
+        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(6)));
 
     let _ = (**entry).push_overwrite(msg.clone());
 }
