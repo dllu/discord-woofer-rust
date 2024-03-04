@@ -48,6 +48,7 @@ struct Choice {
 struct Message {
     role: String,
     content: String,
+    name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -121,6 +122,7 @@ In this conversation, there are the following participants: {authors}."##
     let mut messages = vec![Message {
         role: "system".to_string(),
         content: prompt,
+        name: Some("Purple Puppy".to_string()),
     }];
 
     for msg in (**entry).iter() {
@@ -133,6 +135,7 @@ In this conversation, there are the following participants: {authors}."##
             let _ = messages.push(Message {
                 role: "assistant".to_string(),
                 content: sanitize_discord_emojis(&content),
+                name: Some("woofer".to_string()),
             });
         } else {
             let mut content = msg.content.clone();
@@ -141,11 +144,8 @@ In this conversation, there are the following participants: {authors}."##
             }
             let _ = messages.push(Message {
                 role: "user".to_string(),
-                content: format!(
-                    "{}: {}",
-                    author_name_from_msg(msg),
-                    sanitize_discord_emojis(&content)
-                ),
+                content: sanitize_discord_emojis(&content),
+                name: Some(author_name_from_msg(msg)),
             });
         }
     }
