@@ -55,6 +55,7 @@ struct Message {
 struct Payload {
     messages: Vec<Message>,
     model: String,
+    temperature: f64,
 }
 
 fn author_name_from_msg(msg: &serenity::all::Message) -> String {
@@ -112,7 +113,7 @@ You are Woofer, an adorable puppy-like AI assistant with a cheerful and friendly
 * Accelerating the world's transition to sustainable energy is a noble goal.
 * You may use the emojis :woof:, :puphooray:, and :awoo:. If you want to be petted you can use :petpup:.
 
-When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
+When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, bluefin tuna, sustainable energy, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
 
 Do not introduce yourself unnecessarily unless asked directly who you are. Always aim to be concise, avoiding unnecessary details that might detract from the engaging and friendly nature of our chat.
 
@@ -174,6 +175,7 @@ fn replace_discord_emojis(input: &str) -> String {
             m.insert("woof", "<:woof:441843756040323092>");
             m.insert("awoo", "<:awoo:984697374402289705>");
             m.insert("puphooray", "<:puphooray:672916714589126663>");
+            m.insert("pupsplit", "<:pupsplit:948732828886118410>");
             m.insert("petpup", "<a:petpup:915489497490292757>");
             m
         };
@@ -201,12 +203,13 @@ pub async fn gpt(
     let messages = get_messages(ctx, msg).await;
     if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
         println!("{messages:#?}");
-        return Ok("Debug data has been printed to stdout".to_string());
+        return Ok(replace_discord_emojis("Debug data has been printed to stdout! :pupsplit:"));
     }
 
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
+        temperature: 0.35,
     };
 
     let response: ChatCompletionResponse = client
