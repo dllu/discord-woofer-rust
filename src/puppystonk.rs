@@ -75,7 +75,7 @@ fn find_min_max_f64(numbers: &[Option<f64>]) -> (Option<f64>, Option<f64>) {
     (min_number, max_number)
 }
 
-fn plot_svg(result: &Result) -> anyhow::Result<String> {
+fn plot_svg(result: &Result) -> anyhow::Result<(String, i64)> {
     let quote = &result.indicators.quote[0].close;
 
     let (min_ts, max_ts) = find_min_max_i64(&result.timestamp);
@@ -83,39 +83,77 @@ fn plot_svg(result: &Result) -> anyhow::Result<String> {
     let max_ts: i64 = max_ts.ok_or_else(|| anyhow!("no max ts found"))?;
 
     let (min_quote, max_quote) = find_min_max_f64(quote);
-    let min_quote: f64 = min_quote.ok_or_else(|| anyhow!("no min quote found"))?;
-    let max_quote: f64 = max_quote.ok_or_else(|| anyhow!("no max quote found"))?;
+    let mut min_quote: f64 = min_quote.ok_or_else(|| anyhow!("no min quote found"))?;
+    let mut max_quote: f64 = max_quote.ok_or_else(|| anyhow!("no max quote found"))?;
+    let previous_close = result.meta.previous_close;
+    if previous_close < min_quote {
+        min_quote = previous_close;
+    }
+    if previous_close > max_quote {
+        max_quote = previous_close;
+    }
 
-    const WIDTH: i64 = 512;
-    const HEIGHT: i64 = 256;
-    let mut svg_out: String =
-        format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}">"##);
-    let color = if result.meta.regular_market_price > result.meta.previous_close {
+    const WIDTH: i64 = 2048;
+    const HEIGHT: i64 = 768;
+    const FONTSIZE: i64 = 64;
+    let color = if result.meta.regular_market_price > previous_close {
         "#3c1"
     } else {
         "#e21"
     };
-    svg_out.push_str(&format!(r##"<polyline fill="none" stroke="{color}" points=""##).to_string());
+    let grey = "#888";
+
+    let close_y = |close: f64| -> f64 {
+        (HEIGHT as f64) * (0.90 - 0.8 * (close - min_quote) / (max_quote - min_quote))
+    };
+
+    let mut svg_out: String = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}">
+                    <style>.text {{ font: {FONTSIZE}px monospace; fill: {grey}; }}</style>"##
+    );
+
+    let last_close_y = close_y(previous_close);
+    svg_out.push_str(
+        &format!(r##"<line x1="0" y1="{last_close_y}" x2="{WIDTH}" y2="{last_close_y}"
+                 stroke="{grey}" stroke-dasharray="16" stroke-width="4" />"##).to_string(),
+    );
+
+    svg_out.push_str(&format!(r##"<polyline fill="none" stroke="{color}" stroke-width="4" points=""##).to_string());
 
     for pair in result.timestamp.iter().zip(quote.iter()) {
         if let (Some(timestamp), Some(close)) = pair {
             let x = (timestamp - min_ts) * WIDTH / (max_ts - min_ts);
-            let y = (HEIGHT as f64) * (0.95 - 0.9 * (close - min_quote) / (max_quote - min_quote));
-            svg_out.push_str(&format!("{},{} ", x, y).to_string());
+            let y = close_y(*close);
+            svg_out.push_str(&format!("{x},{y} ").to_string());
         }
     }
-    svg_out.push_str(r##""/></svg>"##);
-    Ok(svg_out)
+    svg_out.push_str(r##""/>"##);
+
+    let top = 10 + FONTSIZE;
+    svg_out.push_str(
+        &format!(r##"<text x="10" y="{top}" class="text">{max_quote:.2}</text>"##).to_string(),
+    );
+
+    let bottom = HEIGHT - 10;
+    svg_out.push_str(
+        &format!(r##"<text x="10" y="{bottom}" class="text">{min_quote:.2}</text>"##).to_string(),
+    );
+    svg_out.push_str(r##"</svg>"##);
+
+    Ok((svg_out, max_ts))
 }
 
 fn save_png(svg: &str) -> anyhow::Result<String> {
-    let fontdb = resvg::usvg::fontdb::Database::new();
+    let mut fontdb = resvg::usvg::fontdb::Database::new();
+    fontdb.load_system_fonts();
+    fontdb.set_monospace_family("DejaVu Sans Mono");
     let opt = resvg::usvg::Options::default();
     let rtree = resvg::usvg::Tree::from_str(svg, &opt, &fontdb)?;
 
     let pixmap_size = rtree.size();
     let mut pixmap =
-        resvg::tiny_skia::Pixmap::new(pixmap_size.width() as u32, pixmap_size.height() as u32).ok_or_else(||anyhow!("couldn't allocate pixmap"))?;
+        resvg::tiny_skia::Pixmap::new(pixmap_size.width() as u32, pixmap_size.height() as u32)
+            .ok_or_else(|| anyhow!("couldn't allocate pixmap"))?;
 
     resvg::render(
         &rtree,
@@ -127,7 +165,7 @@ fn save_png(svg: &str) -> anyhow::Result<String> {
     Ok(filename)
 }
 
-pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String)> {
+pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
     // TODO use a source that has not been officially discontinued
     let stonk_url = format!(
         "https://query1.finance.yahoo.com/v8/finance/chart/{}",
@@ -141,7 +179,7 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String)> {
         .chart
         .result[0];
 
-    let svg = plot_svg(&stonk_result)?;
+    let (svg, latest_ts) = plot_svg(&stonk_result)?;
     let filename = save_png(&svg)?;
     let currency = iso::find(&stonk_result.meta.currency)
         .expect("currency code missing from response metadata");
@@ -156,5 +194,5 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String)> {
         "{}: {}{} {}",
         ticker, currency.symbol, stonk_result.meta.regular_market_price, emoji
     );
-    Ok((out, filename))
+    Ok((out, filename, latest_ts))
 }

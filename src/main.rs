@@ -65,25 +65,24 @@ impl EventHandler for Handler {
         } else if STONK_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let ticker = &lower[12..];
-            let (stonk, filename) = puppystonk::stonk(ticker).await.unwrap();
+            let (stonk, filename, timestamp) = puppystonk::stonk(ticker).await.unwrap();
             typing.stop();
             let embed = CreateEmbed::new()
                 .title(lower)
                 .description(stonk)
                 .image(format!("attachment://{filename}"))
-                // This also accepts a rfc3339 Timestamp
-                .timestamp(Timestamp::now());
-            let builder = CreateMessage::new()
-                .embed(embed)
-                .add_file(
-                    CreateAttachment::path(format!("./{filename}"))
-                        .await
-                        .unwrap(),
-                );
+                .timestamp(Timestamp::from_unix_timestamp(timestamp).unwrap());
+            let builder = CreateMessage::new().embed(embed).add_file(
+                CreateAttachment::path(format!("./{filename}"))
+                    .await
+                    .unwrap(),
+            );
 
             if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
                 println!("Error sending message: {why:?}");
             }
+
+            std::fs::remove_file(filename).unwrap();
         } else if WEATHER_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let address = &lower[14..];
