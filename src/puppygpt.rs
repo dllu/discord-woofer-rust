@@ -143,10 +143,11 @@ In this conversation, there are the following participants: {authors}."##
             if content.to_lowercase().starts_with("puppy gpt ") {
                 content = msg.content[10..].to_string();
             }
+            let author_name = author_name_from_msg(msg);
             let _ = messages.push(Message {
                 role: "user".to_string(),
-                content: sanitize_discord_emojis(&content),
-                name: Some(author_name_from_msg(msg)),
+                content: format!("{}: {}", author_name, sanitize_discord_emojis(&content)),
+                name: Some(author_name),
             });
         }
     }
@@ -203,7 +204,9 @@ pub async fn gpt(
     let messages = get_messages(ctx, msg).await;
     if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
         println!("{messages:#?}");
-        return Ok(replace_discord_emojis("Debug data has been printed to stdout! :pupsplit:"));
+        return Ok(replace_discord_emojis(
+            "Debug data has been printed to stdout! :pupsplit:",
+        ));
     }
 
     let payload = Payload {
@@ -223,10 +226,14 @@ pub async fn gpt(
         .await?;
 
     if let Some(choice) = response.choices.get(0) {
+        let mut output = choice.message.content.clone();
+        if output.starts_with("woofer: ") || output.starts_with("Woofer: ") {
+            output = choice.message.content[8..].to_string();
+        }
         Ok(format!(
             "{}{}",
             OUTPUT_PREFIX,
-            replace_discord_emojis(&replace_emojis(&choice.message.content))
+            replace_discord_emojis(&replace_emojis(&output))
         ))
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
