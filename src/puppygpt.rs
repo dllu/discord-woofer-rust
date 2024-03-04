@@ -200,7 +200,7 @@ pub async fn gpt(
 
     let messages = get_messages(ctx, msg).await;
     if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
-        println!("{messages:?}");
+        println!("{messages:#?}");
         return Ok("Debug data has been printed to stdout".to_string());
     }
 
