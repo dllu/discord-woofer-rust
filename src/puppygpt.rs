@@ -212,7 +212,7 @@ pub async fn gpt(
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
-        temperature: 0.35,
+        temperature: 0.8,
     };
 
     let response: ChatCompletionResponse = client
