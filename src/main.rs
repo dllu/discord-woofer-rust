@@ -131,9 +131,11 @@ impl EventHandler for Handler {
             let typing = msg.channel_id.start_typing(&ctx.http);
             if let Ok(response) = puppygpt::gpt(&ctx, &msg, &self.groq_token).await {
                 typing.stop();
-
-                if let Err(why) = msg.reply(&ctx.http, response).await {
-                    println!("Error sending message: {:?}", why);
+                let responses = split_string(&response);
+                for res in responses.iter() {
+                    if let Err(why) = msg.reply(&ctx.http, res).await {
+                        println!("Error sending message: {:?}", why);
+                    }
                 }
             } else {
                 typing.stop();
@@ -195,4 +197,42 @@ async fn main() {
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);
     }
+}
+
+fn split_string(input: &str) -> Vec<String> {
+    const MAX_LENGTH: usize = 2000;
+    let mut result = Vec::new();
+
+    // Check if the input is already within the limit.
+    if input.len() <= MAX_LENGTH {
+        result.push(input.to_string());
+    } else {
+        let mut start_index = 0;
+        while start_index < input.len() {
+            // Determine the end index for the current piece, ensuring we don't go beyond the input's length.
+            let mut end_index = std::cmp::min(start_index + MAX_LENGTH, input.len());
+            if end_index == input.len() {
+                result.push(input[start_index..].to_string());
+                break;
+            }
+            let current_piece = &input[start_index..end_index];
+
+            // Try to find a newline or whitespace to split at, starting from the end of the current piece.
+            if let Some(last_newline) = current_piece.rfind("\n\n") {
+                end_index = start_index + last_newline + 1;
+            } else if let Some(last_newline) = current_piece.rfind('\n') {
+                end_index = start_index + last_newline + 1;
+            } else if let Some(last_space) = current_piece.rfind(char::is_whitespace) {
+                end_index = start_index + last_space + 1;
+            }
+
+            // Add the current piece to the result.
+            result.push(input[start_index..end_index].to_string());
+
+            // Update the start index for the next piece.
+            start_index = end_index;
+        }
+    }
+
+    result
 }
