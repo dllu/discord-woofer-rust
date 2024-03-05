@@ -45,6 +45,8 @@ impl EventHandler for Handler {
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
             static ref GPT_RE: Regex = Regex::new(r"^puppy gpt\s\w*").unwrap();
         }
+        const ERROR_MSG: &str =
+            "<a:pupgone:1061133208676204605> It didn't work. Please try again later!";
         let content = &msg.content;
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
@@ -65,24 +67,28 @@ impl EventHandler for Handler {
         } else if STONK_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let ticker = &lower[12..];
-            let (stonk, filename, timestamp) = puppystonk::stonk(ticker).await.unwrap();
-            typing.stop();
-            let embed = CreateEmbed::new()
-                .title(lower)
-                .description(stonk)
-                .image(format!("attachment://{filename}"))
-                .timestamp(Timestamp::from_unix_timestamp(timestamp).unwrap());
-            let builder = CreateMessage::new().embed(embed).add_file(
-                CreateAttachment::path(format!("./{filename}"))
-                    .await
-                    .unwrap(),
-            );
+            if let Ok((stonk, filename, timestamp)) = puppystonk::stonk(ticker).await {
+                typing.stop();
+                let embed = CreateEmbed::new()
+                    .title(lower)
+                    .description(stonk)
+                    .image(format!("attachment://{filename}"))
+                    .timestamp(Timestamp::from_unix_timestamp(timestamp).unwrap());
+                let builder = CreateMessage::new().embed(embed).add_file(
+                    CreateAttachment::path(format!("./{filename}"))
+                        .await
+                        .unwrap(),
+                );
 
-            if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
-                println!("Error sending message: {why:?}");
+                if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
+                    println!("Error sending message: {why:?}");
+                }
+                std::fs::remove_file(filename).unwrap();
+            } else {
+                if let Err(why) = msg.reply(&ctx.http, ERROR_MSG).await {
+                    println!("Error sending message: {:?}", why);
+                }
             }
-
-            std::fs::remove_file(filename).unwrap();
         } else if WEATHER_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let address = &lower[14..];
@@ -123,11 +129,18 @@ impl EventHandler for Handler {
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
-            let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await.unwrap();
-            typing.stop();
+            if let Ok(response) = puppygpt::gpt(&ctx, &msg, &self.groq_token).await {
+                typing.stop();
 
-            if let Err(why) = msg.reply(&ctx.http, response).await {
-                println!("Error sending message: {:?}", why);
+                if let Err(why) = msg.reply(&ctx.http, response).await {
+                    println!("Error sending message: {:?}", why);
+                }
+            } else {
+                typing.stop();
+
+                if let Err(why) = msg.reply(&ctx.http, ERROR_MSG).await {
+                    println!("Error sending message: {:?}", why);
+                }
             }
         }
     }

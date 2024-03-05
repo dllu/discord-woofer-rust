@@ -8,8 +8,8 @@ use std::{
     sync::Arc,
 };
 
-// const MODEL: &str = "mixtral-8x7b-32768";
-const MODEL: &str = "llama2-70b-4096";
+const MODEL: &str = "mixtral-8x7b-32768";
+// const MODEL: &str = "llama2-70b-4096";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462> ";
 
 pub struct Conversation;
@@ -56,6 +56,8 @@ struct Payload {
     messages: Vec<Message>,
     model: String,
     temperature: f64,
+    presence_penalty: f64,
+    frequency_penalty: f64,
 }
 
 fn author_name_from_msg(msg: &serenity::all::Message) -> String {
@@ -212,7 +214,9 @@ pub async fn gpt(
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
-        temperature: 0.8,
+        temperature: 0.5,
+        presence_penalty: 0.5,
+        frequency_penalty: 0.5,
     };
 
     let response: ChatCompletionResponse = client
