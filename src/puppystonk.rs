@@ -114,11 +114,17 @@ fn plot_svg(result: &Result) -> anyhow::Result<(String, i64)> {
 
     let last_close_y = close_y(previous_close);
     svg_out.push_str(
-        &format!(r##"<line x1="0" y1="{last_close_y}" x2="{WIDTH}" y2="{last_close_y}"
-                 stroke="{grey}" stroke-dasharray="16" stroke-width="4" />"##).to_string(),
+        &format!(
+            r##"<line x1="0" y1="{last_close_y}" x2="{WIDTH}" y2="{last_close_y}"
+                 stroke="{grey}" stroke-dasharray="16" stroke-width="4" />"##
+        )
+        .to_string(),
     );
 
-    svg_out.push_str(&format!(r##"<polyline fill="none" stroke="{color}" stroke-width="4" points=""##).to_string());
+    svg_out.push_str(
+        &format!(r##"<polyline fill="none" stroke="{color}" stroke-width="4" points=""##)
+            .to_string(),
+    );
 
     for pair in result.timestamp.iter().zip(quote.iter()) {
         if let (Some(timestamp), Some(close)) = pair {
@@ -165,20 +171,7 @@ fn save_png(svg: &str) -> anyhow::Result<String> {
     Ok(filename)
 }
 
-pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
-    // TODO use a source that has not been officially discontinued
-    let stonk_url = format!(
-        "https://query1.finance.yahoo.com/v8/finance/chart/{}",
-        ticker
-    );
-
-    let stonk_result: &Result = &reqwest::get(&stonk_url)
-        .await?
-        .json::<Stonk>()
-        .await?
-        .chart
-        .result[0];
-
+fn stonk_to_image(stonk_result: &Result, ticker: &str) -> anyhow::Result<(String, String, i64)> {
     let (svg, latest_ts) = plot_svg(&stonk_result)?;
     let filename = save_png(&svg)?;
     let currency = iso::find(&stonk_result.meta.currency)
@@ -195,4 +188,28 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
         ticker, currency.symbol, stonk_result.meta.regular_market_price, emoji
     );
     Ok((out, filename, latest_ts))
+}
+
+pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
+    // TODO use a source that has not been officially discontinued
+    let stonk_url = format!(
+        "https://query1.finance.yahoo.com/v8/finance/chart/{}",
+        ticker
+    );
+
+    let response = reqwest::get(&stonk_url).await;
+
+    match response {
+        Ok(resp) => {
+            // Check if the request was successful
+            let status = resp.status();
+            if status.is_success() {
+                let stonk_result: &Result = &resp.json::<Stonk>().await?.chart.result[0];
+                stonk_to_image(stonk_result, ticker)
+            } else {
+                Err(anyhow!("Request failed with status: {}", resp.status()))
+            }
+        }
+        Err(e) => Err(anyhow!("Request failed cuz: {}", e)),
+    }
 }
