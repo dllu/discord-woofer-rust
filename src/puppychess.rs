@@ -160,7 +160,7 @@ fn fen_url(pos: shakmaty::Chess) -> Result<String> {
     Ok(format!("https://chess.dllu.net/{f}.png"))
 }
 
-fn format_pgn(moves: &Vec<String>) -> String {
+fn format_pgn(moves: &[String]) -> String {
     let mut pgn = String::new();
     let mut move_count = 1;
 

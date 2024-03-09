@@ -117,7 +117,7 @@ In this conversation, there are the following participants: {authors}."##
                 content = msg.content[OUTPUT_PREFIX.len()..].to_string();
             }
 
-            let _ = messages.push(Message {
+            messages.push(Message {
                 role: "assistant".to_string(),
                 content: sanitize_discord_emojis(&content),
                 name: Some("woofer".to_string()),
@@ -128,7 +128,7 @@ In this conversation, there are the following participants: {authors}."##
                 content = msg.content[10..].to_string();
             }
             let author_name = utils::author_name_from_msg(msg);
-            let _ = messages.push(Message {
+            messages.push(Message {
                 role: "user".to_string(),
                 content: format!("{}: {}", author_name, sanitize_discord_emojis(&content)),
                 name: Some(author_name),
@@ -211,7 +211,7 @@ pub async fn gpt(
         .json()
         .await?;
 
-    if let Some(choice) = response.choices.get(0) {
+    if let Some(choice) = response.choices.first() {
         let mut output = choice.message.content.clone();
         if output.starts_with("woofer: ") || output.starts_with("Woofer: ") {
             output = choice.message.content[8..].to_string();

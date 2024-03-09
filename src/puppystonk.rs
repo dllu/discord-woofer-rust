@@ -41,7 +41,7 @@ struct Quote {
 }
 
 fn find_min_max_i64(numbers: &[Option<i64>]) -> (Option<i64>, Option<i64>) {
-    let filtered_numbers: Vec<i64> = numbers.into_iter().filter_map(|&x| x).collect();
+    let filtered_numbers: Vec<i64> = numbers.iter().filter_map(|&x| x).collect();
 
     let max_number = filtered_numbers.iter().cloned().max();
     let min_number = filtered_numbers.iter().cloned().min();
@@ -172,7 +172,7 @@ fn save_png(svg: &str) -> anyhow::Result<String> {
 }
 
 fn stonk_to_image(stonk_result: &Result, ticker: &str) -> anyhow::Result<(String, String, i64)> {
-    let (svg, latest_ts) = plot_svg(&stonk_result)?;
+    let (svg, latest_ts) = plot_svg(stonk_result)?;
     let filename = save_png(&svg)?;
     let currency = iso::find(&stonk_result.meta.currency)
         .expect("currency code missing from response metadata");
