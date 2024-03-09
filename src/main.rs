@@ -14,6 +14,7 @@ mod puppygpt;
 mod puppystonk;
 mod puppyweather;
 mod puppywhy;
+mod utils;
 
 struct Handler {
     openweather_token: String,
@@ -110,27 +111,14 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
-            let res = puppychess::chess(&ctx, &msg).await;
-            match res {
-                Ok(s) => {
-                    if let Err(why) = msg.reply(&ctx.http, s).await {
-                        println!("Error sending message: {:?}", why);
-                    }
-                }
-                Err(why2) => {
-                    println!("Error making chess move: {:?}", why2);
-                    let res_im = puppychess::chess_illegal_move(&ctx, &msg).await;
-                    match res_im {
-                        Ok(s_im) => {
-                            if let Err(why) = msg.reply(&ctx.http, s_im).await {
-                                println!("Error sending message: {:?}", why);
-                            }
-                        }
-                        Err(why_im) => {
-                            println!("Error making chess move: {:?}", why_im);
-                        }
-                    }
-                }
+            let mut res = puppychess::chess(&ctx, &msg).await;
+            if let Err(why2) = res {
+                println!("Error making chess move: {:?}", why2);
+
+                res = puppychess::chess_illegal_move(&ctx, &msg).await;
+            }
+            if let Err(why) = puppychess::reply(&ctx, &msg, res.unwrap()).await {
+                println!("Error sending message: {:?}", why);
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);

@@ -1,3 +1,4 @@
+use crate::utils;
 use anyhow::{anyhow, Result};
 use serenity::prelude::*;
 use shakmaty::Position;
@@ -5,13 +6,55 @@ use std::{collections::HashMap, sync::Arc};
 
 pub struct ChessGame;
 impl TypeMapKey for ChessGame {
-    type Value = Arc<RwLock<HashMap<String, Box<(shakmaty::Chess, Option<String>, Vec<String>)>>>>;
+    type Value = Arc<RwLock<HashMap<String, Box<ChessState>>>>;
+}
+
+pub struct ChessState {
+    pos: shakmaty::Chess,
+    user_id: Option<String>,
+    user_name: Option<String>,
+    moves: Vec<String>,
+}
+
+impl ChessState {
+    fn new() -> Self {
+        ChessState {
+            pos: shakmaty::Chess::default(),
+            user_id: None,
+            user_name: None,
+            moves: Vec::new(),
+        }
+    }
+}
+
+pub struct ChessOutput {
+    status: String,
+    url: String,
+    pgn: String,
+}
+
+pub async fn reply(
+    ctx: &serenity::prelude::Context,
+    msg: &serenity::all::Message,
+    chess: ChessOutput,
+) -> Result<()> {
+    let embed = serenity::builder::CreateEmbed::new()
+        .description(chess.status)
+        .image(chess.url)
+        .field("move history", chess.pgn, false)
+        .timestamp(serenity::model::Timestamp::now());
+    let builder = serenity::builder::CreateMessage::new().embed(embed);
+
+    if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
+        println!("Error sending message: {why:?}");
+    }
+    Ok(())
 }
 
 pub async fn chess_illegal_move(
     ctx: &serenity::prelude::Context,
     msg: &serenity::all::Message,
-) -> Result<String> {
+) -> Result<ChessOutput> {
     let game_lock = {
         let data_read = ctx.data.read().await;
         data_read
@@ -22,8 +65,8 @@ pub async fn chess_illegal_move(
     let mut map = game_lock.write().await;
     let entry = map
         .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new((shakmaty::Chess::default(), None, Vec::new())));
-    let pos = &entry.0;
+        .or_insert_with(|| Box::new(ChessState::new()));
+    let pos = &entry.pos;
 
     let moves = pos.legal_moves();
     let move_strings: Vec<String> = moves
@@ -35,16 +78,15 @@ pub async fn chess_illegal_move(
         .collect();
 
     let moves_string = move_strings.join(", ");
-    Ok(format!(
-        "Illegal move!!!!! The valid moves are {}.",
-        moves_string
-    ))
+
+    Ok(ChessOutput {
+        status: format!("Illegal move!!!!! The valid moves are {moves_string}."),
+        url: fen_url(entry.pos.clone())?,
+        pgn: format_pgn(&entry.moves),
+    })
 }
 
-pub async fn chess(
-    ctx: &Context,
-    msg: &serenity::all::Message,
-) -> Result<String> {
+pub async fn chess(ctx: &Context, msg: &serenity::all::Message) -> Result<ChessOutput> {
     let san_str = &msg.content[12..];
     let san: shakmaty::san::San = san_str.parse()?;
 
@@ -59,37 +101,38 @@ pub async fn chess(
     let mut map = game_lock.write().await;
     let entry = map
         .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new((shakmaty::Chess::default(), None, Vec::new())));
-    if let Some(previous_player) = &(entry.1) {
+        .or_insert_with(|| Box::new(ChessState::new()));
+    if let Some(previous_player) = &(entry.user_id) {
         if previous_player == &current_player {
-            return Ok(format!(
-                "Someone else has to make a move first!!!!! The game so far is {}.",
-                format_pgn(&entry.2)
-            ));
+            let username = entry.user_name.as_ref().unwrap();
+            return Ok(ChessOutput {
+                status : format!("Someone else has to make a move first!!!!! The last player to make a move is {username}."),
+                url : fen_url(entry.pos.clone())?,
+                pgn : format_pgn(&entry.moves),
+                });
         }
     }
-    let pos = &entry.0;
+    let pos = &entry.pos;
     let mov = san.to_move(pos)?;
     let pos_next = pos.clone().play(&mov)?;
-    let fen = shakmaty::fen::Epd::from_position(pos_next.clone(), shakmaty::EnPassantMode::Legal)
-        .to_string();
-    let f = fen
-        .split(' ')
-        .next()
-        .ok_or_else(|| anyhow!("FEN is malformed"))?;
 
     let status: String;
 
-    let mut new_moves = entry.2.clone();
+    let mut new_moves = entry.moves.clone();
     new_moves.push(san_str.to_string());
+    let pgn = format_pgn(&new_moves);
 
     match pos_next.outcome() {
         None => {
-            **entry = (pos_next, Some(current_player), new_moves);
+            **entry = ChessState {
+                pos: pos_next.clone(),
+                user_id: Some(current_player),
+                user_name: Some(utils::author_name_from_msg(msg)),
+                moves: new_moves,
+            };
             status = "".to_string();
         }
         Some(outcome) => {
-            let pgn = format_pgn(&new_moves);
             match outcome {
                 shakmaty::Outcome::Decisive { winner: w } => match w {
                     shakmaty::Color::White => status = format!("White wins! {} 1-0", pgn),
@@ -97,10 +140,24 @@ pub async fn chess(
                 },
                 shakmaty::Outcome::Draw => status = format!("Draw! {} 1/2-1/2", pgn),
             }
-            **entry = (shakmaty::Chess::default(), None, Vec::new());
+            **entry = ChessState::new();
         }
     }
-    return Ok(format!("{} https://chess.dllu.net/{}.png", status, f));
+
+    Ok(ChessOutput {
+        status,
+        url: fen_url(pos_next)?,
+        pgn,
+    })
+}
+
+fn fen_url(pos: shakmaty::Chess) -> Result<String> {
+    let fen = shakmaty::fen::Epd::from_position(pos, shakmaty::EnPassantMode::Legal).to_string();
+    let f = fen
+        .split(' ')
+        .next()
+        .ok_or_else(|| anyhow!("FEN is malformed"))?;
+    Ok(format!("https://chess.dllu.net/{f}.png"))
 }
 
 fn format_pgn(moves: &Vec<String>) -> String {
