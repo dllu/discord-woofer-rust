@@ -46,8 +46,7 @@ impl EventHandler for Handler {
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
             static ref GPT_RE: Regex = Regex::new(r"^puppy gpt\s\w*").unwrap();
         }
-        const ERROR_MSG: &str =
-            "<a:pupgone:1061133208676204605> It didn't work!";
+        const ERROR_MSG: &str = "<a:pupgone:1061133208676204605> It didn't work!";
         let content = &msg.content;
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
@@ -122,19 +121,23 @@ impl EventHandler for Handler {
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
-            if let Ok(response) = puppygpt::gpt(&ctx, &msg, &self.groq_token).await {
-                typing.stop();
-                let responses = split_string(&response);
-                for res in responses.iter() {
-                    if let Err(why) = msg.reply(&ctx.http, res).await {
-                        println!("Error sending message: {:?}", why);
+            let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await;
+            match response {
+                Ok(res) => {
+                    typing.stop();
+                    let responses = split_string(&res);
+                    for res_split in responses.iter() {
+                        if let Err(why) = msg.reply(&ctx.http, res_split).await {
+                            println!("Error sending message: {:?}", why);
+                        }
                     }
                 }
-            } else {
-                typing.stop();
+                Err(why2) => {
+                    typing.stop();
 
-                if let Err(why) = msg.reply(&ctx.http, ERROR_MSG).await {
-                    println!("Error sending message: {:?}", why);
+                    if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {why2:?}")).await {
+                        println!("Error sending message: {:?}", why);
+                    }
                 }
             }
         }

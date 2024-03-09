@@ -1,4 +1,5 @@
 use crate::utils;
+use anyhow::anyhow;
 use lazy_static::lazy_static;
 use regex::Regex;
 use ringbuf::Rb;
@@ -194,15 +195,18 @@ pub async fn gpt(
         frequency_penalty: 0.5,
     };
 
-    let response: ChatCompletionResponse = client
+    let response = client
         .post("https://api.groq.com/openai/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
-        .await?
-        .json()
         .await?;
+
+    if response.status().is_success() {
+        return Err(anyhow!("Request failed with status: {}", response.status()));
+    }
+    let response: ChatCompletionResponse = response.json().await?;
 
     if let Some(choice) = response.choices.first() {
         let mut output = choice.message.content.clone();
