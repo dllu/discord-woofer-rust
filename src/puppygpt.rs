@@ -203,7 +203,7 @@ pub async fn gpt(
         .send()
         .await?;
 
-    if response.status().is_success() {
+    if !response.status().is_success() {
         return Err(anyhow!("Request failed with status: {}", response.status()));
     }
     let response: ChatCompletionResponse = response.json().await?;
