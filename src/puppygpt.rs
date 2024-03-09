@@ -139,13 +139,6 @@ In this conversation, there are the following participants: {authors}."##
     messages
 }
 
-fn replace_emojis(text: &str) -> String {
-    // This regex pattern is a very simplistic approximation and does not cover all emoji cases.
-    let emoji_pattern = r"(?:[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+)";
-    let re = Regex::new(emoji_pattern).unwrap();
-    re.replace_all(text, ":woof:").into_owned()
-}
-
 fn sanitize_discord_emojis(text: &str) -> String {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"<a?:([a-zA-Z0-9_]+):[0-9]+>").unwrap();
@@ -219,7 +212,7 @@ pub async fn gpt(
         Ok(format!(
             "{}{}",
             OUTPUT_PREFIX,
-            replace_discord_emojis(&replace_emojis(&output))
+            replace_discord_emojis(&output)
         ))
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
