@@ -190,7 +190,7 @@ pub async fn gpt(
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
-        temperature: 0.5,
+        temperature: 1.0,
         presence_penalty: 0.5,
         frequency_penalty: 0.5,
     };
