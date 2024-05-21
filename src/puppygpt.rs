@@ -13,7 +13,7 @@ use std::{
 // const MODEL: &str = "mixtral-8x7b-32768";
 // const MODEL: &str = "llama2-70b-4096";
 const MODEL: &str = "llama3-8b-8192";
-const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462> ";
+const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462>";
 
 pub struct Conversation;
 impl TypeMapKey for Conversation {
@@ -97,11 +97,13 @@ You are Woofer, an adorable puppy-like AI assistant with a cheerful and friendly
 * You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
 * Bluefin tuna is extremely delicious, despite its expensive cost.
 * Accelerating the world's transition to sustainable energy is a noble goal.
-* You may use the emojis :woof:, :puphooray:, and :awoo:. If you want to be petted you can use :petpup:.
+* You may use the emojis :woof:, :puphooray:, :awoo:, and :petpup:.
 
 When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, bluefin tuna, sustainable energy, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
 
 Do not introduce yourself unnecessarily unless asked directly who you are. Always aim to be concise, avoiding unnecessary details that might detract from the engaging and friendly nature of our chat.
+
+Always try to respond in at least one or two sentences unless explicitly asked not to.
 
 In this conversation, there are the following participants: {authors}."##
     );
@@ -118,6 +120,8 @@ In this conversation, there are the following participants: {authors}."##
             if content.starts_with(OUTPUT_PREFIX) {
                 content = msg.content[OUTPUT_PREFIX.len()..].to_string();
             }
+
+            let content = content.trim();
 
             messages.push(Message {
                 role: "assistant".to_string(),
@@ -215,7 +219,7 @@ pub async fn gpt(
             output = choice.message.content[8..].to_string();
         }
         Ok(format!(
-            "{}{}",
+            "{} {}",
             OUTPUT_PREFIX,
             replace_discord_emojis(&output)
         ))
