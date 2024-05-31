@@ -20,6 +20,7 @@ struct Handler {
     openweather_token: String,
     google_maps_token: String,
     groq_token: String,
+    avwx_token: String,
 }
 
 #[async_trait]
@@ -42,6 +43,7 @@ impl EventHandler for Handler {
             )
             .unwrap();
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
+            static ref METAR_RE: Regex = Regex::new(r"^puppy metar\s\w+").unwrap();
             static ref STONK_RE: Regex = Regex::new(r"^puppy stonk\s\w+").unwrap();
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
             static ref GPT_RE: Regex = Regex::new(r"^puppy gpt\s\w*").unwrap();
@@ -109,6 +111,17 @@ impl EventHandler for Handler {
             if let Err(why) = msg.reply(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
             }
+        } else if METAR_RE.is_match(&lower) {
+            let typing = msg.channel_id.start_typing(&ctx.http);
+            let address = &lower[12..];
+            // TODO: error handlin
+            let weather = puppyweather::metar(address, &self.avwx_token)
+                .await
+                .unwrap();
+            typing.stop();
+            if let Err(why) = msg.reply(&ctx.http, weather).await {
+                println!("Error sending message: {:?}", why);
+            }
         } else if CHESS_RE.is_match(&lower) {
             let mut res = puppychess::chess(&ctx, &msg).await;
             if let Err(why2) = res {
@@ -163,6 +176,8 @@ async fn main() {
     let google_maps_token =
         env::var("GOOGLE_MAPS_TOKEN").expect("Expected $GOOGLE_MAPS_TOKEN in the environment");
     let groq_token = env::var("GROQ_TOKEN").expect("Expected $GROQ_TOKEN in the environment");
+    let avwx_token = env::var("AVWX_TOKEN").expect("Expected $AVWX_TOKEN in the environment");
+
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
@@ -174,6 +189,7 @@ async fn main() {
         openweather_token,
         google_maps_token,
         groq_token,
+        avwx_token,
     };
 
     let mut client = Client::builder(&discord_token, intents)

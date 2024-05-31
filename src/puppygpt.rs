@@ -125,7 +125,7 @@ In this conversation, there are the following participants: {authors}."##
 
             messages.push(Message {
                 role: "assistant".to_string(),
-                content: sanitize_discord_emojis(&content),
+                content: sanitize_discord_emojis(content),
                 name: Some("woofer".to_string()),
             });
         } else {

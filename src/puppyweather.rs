@@ -103,3 +103,21 @@ fn emoji(icon: &str) -> String {
     }
     .to_string()
 }
+
+#[derive(Deserialize, Debug)]
+pub struct MetarResponse {
+    sanitized: String,
+}
+
+pub async fn metar(location: &str, apikey: &str) -> Result<String, reqwest::Error> {
+    let metar_url = format!("https://avwx.rest/api/metar/{}?filter=sanitized", location);
+    println!("{}", metar_url);
+    let metar: MetarResponse = reqwest::Client::new()
+        .get(&metar_url)
+        .header("Authorization", format!("TOKEN {}", apikey))
+        .send()
+        .await?
+        .json()
+        .await?;
+    Ok(format!("`{}`", metar.sanitized))
+}

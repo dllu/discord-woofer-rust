@@ -1,4 +1,3 @@
-
 pub fn author_name_from_msg(msg: &serenity::all::Message) -> String {
     let mut author_name: String = msg
         .author
