@@ -55,10 +55,10 @@ pub struct Weather {
     weather: Vec<WeatherWeather>,
 }
 
-pub async fn weather(location: &Location, apikey: &str, units: &str) -> Result<Weather, reqwest::Error> {
+pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwest::Error> {
     let forecast_url = format!(
-        "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&lang=en&units={}",
-        location.lat, location.lng, apikey, units
+        "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&lang=en",
+        location.lat, location.lng, apikey
     );
     println!("{}", forecast_url);
     let weather: Weather = reqwest::get(&forecast_url).await?.json().await?;
@@ -67,26 +67,34 @@ pub async fn weather(location: &Location, apikey: &str, units: &str) -> Result<W
 
 pub fn weather_string(address: String, location: &Location, units: &str, weather: Weather) -> String {
     let emo = emoji(&weather.weather[0].icon);
-    let uni = unit(&units);
+    let uni = convert_unit_to_symbol(&units);
+    let temp = convert_kelvin_to_unit(weather.main.temp, units);
     format!(
         "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} {}. Humidity {:.1}%. {}",
         address,
         location.lat,
         location.lng,
         weather.weather[0].description,
-        weather.main.temp,
+        temp,
         uni,
         weather.main.humidity,
         emo
     )
 }
 
-fn unit(unit: &str) -> String {
+fn convert_kelvin_to_unit(k: f64, unit: &str) -> f64 {
     match unit {
-        "standard" => "K",
-        "metric" => "C",
-        "imperial" => "F",
-        _ => "",
+        "celsius" => k - 273.15,
+        "fahrenheit" => ((k - 273.15) * 1.8) + 32.0,
+        _ => k
+    }
+}
+
+fn convert_unit_to_symbol(unit: &str) -> String {
+    match unit {
+        "celsius" => "°C",
+        "fahrenheit" => "°F",
+        _ => "K",
     }
     .to_string()
 }

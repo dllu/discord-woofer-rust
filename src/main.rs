@@ -98,28 +98,28 @@ impl EventHandler for Handler {
             }
         } else if WEATHER_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
-            let mut units = String::from("standard");
+            let mut units = String::from("kelvin");
             let mut offset = 14; // base length of "puppy weather "
             lazy_static! {
-                static ref METRIC_RE: Regex = Regex::new(r"^metric\s\w*").unwrap();
-                static ref IMPERIAL_RE: Regex = Regex::new(r"^imperial\s\w*").unwrap();
-                static ref STANDARD_RE: Regex = Regex::new(r"^standard\s\w*").unwrap();
+                static ref CELSIUS_RE: Regex = Regex::new(r"^celsius\s\w*").unwrap();
+                static ref FAHRENHEIT_RE: Regex = Regex::new(r"^fahrenheit\s\w*").unwrap();
+                static ref KELVIN_RE: Regex = Regex::new(r"^kelvin\s\w*").unwrap();
             }
-            if METRIC_RE.is_match(&lower[offset..]) {
-                offset += 7; // base length of "metric "
-                units = String::from("metric");
-            } else if IMPERIAL_RE.is_match(&lower[offset..]) {
-                offset += 9; // base length of "imperial "
-                units = String::from("imperial");
-            } else if STANDARD_RE.is_match(&lower[offset..]) {
-                offset += 9; // base length of "standard "
+            if CELSIUS_RE.is_match(&lower[offset..]) {
+                offset += 8; // base length of "celsius "
+                units = String::from("celsius");
+            } else if FAHRENHEIT_RE.is_match(&lower[offset..]) {
+                offset += 11; // base length of "fahrenheit "
+                units = String::from("fahrenheit");
+            } else if KELVIN_RE.is_match(&lower[offset..]) {
+                offset += 7; // base length of "kelvin "
             }
             let address = &lower[offset..];
             // TODO: error handlin
             let location = puppyweather::geocode(address.to_string(), &self.google_maps_token)
                 .await
                 .unwrap();
-            let weather = puppyweather::weather(&location, &self.openweather_token, &units)
+            let weather = puppyweather::weather(&location, &self.openweather_token)
                 .await
                 .unwrap();
             let response = puppyweather::weather_string(address.to_string(), &location, &units, weather);
