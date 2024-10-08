@@ -5,7 +5,11 @@ a rust discord bot
 supported commands:
 
 * `woof` echos a dog-like onomatopoeia
-* `puppy weather [place name]` get current weather (powered by [OpenWeather API](https://openweathermap.org/api))
+* `puppy weather [unit] [place name]` get current weather (powered by [OpenWeather API](https://openweathermap.org/api)). 
+    * Note, providing ``unit`` is optional, however the following options are supported:
+        * For Kelvin use ``kelvin`` or leave blank
+        * For Celsius use ``celsius``
+        * For Fahrenheit use ``fahrenheit``
 
 ![image](https://github.com/dllu/discord-woofer-rust/assets/14482624/32deb318-08b2-4b0a-b6ad-e7714dc569ca)
 
