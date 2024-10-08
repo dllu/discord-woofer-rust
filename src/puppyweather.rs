@@ -65,10 +65,15 @@ pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwe
     Ok(weather)
 }
 
-pub fn weather_string(address: String, location: &Location, units: &str, weather: Weather) -> String {
+pub fn weather_string(
+    address: String,
+    location: &Location,
+    units: &str,
+    weather: Weather,
+) -> String {
     let emo = emoji(&weather.weather[0].icon);
-    let uni = convert_unit_to_symbol(&units);
-    let temp = convert_kelvin_to_unit(weather.main.temp, &units);
+    let uni = convert_unit_to_symbol(units);
+    let temp = convert_kelvin_to_unit(weather.main.temp, units);
     format!(
         "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} {}. Humidity {:.1}%. {}",
         address,
@@ -86,7 +91,7 @@ fn convert_kelvin_to_unit(k: f64, unit: &str) -> f64 {
     match unit {
         "celsius" => k - 273.15,
         "fahrenheit" => ((k - 273.15) * 1.8) + 32.0,
-        _ => k
+        _ => k,
     }
 }
 

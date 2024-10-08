@@ -122,7 +122,8 @@ impl EventHandler for Handler {
             let weather = puppyweather::weather(&location, &self.openweather_token)
                 .await
                 .unwrap();
-            let response = puppyweather::weather_string(address.to_string(), &location, &units, weather);
+            let response =
+                puppyweather::weather_string(address.to_string(), &location, &units, weather);
             typing.stop();
             if let Err(why) = msg.reply(&ctx.http, response).await {
                 println!("Error sending message: {:?}", why);
