@@ -68,7 +68,7 @@ pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwe
 pub fn weather_string(address: String, location: &Location, units: &str, weather: Weather) -> String {
     let emo = emoji(&weather.weather[0].icon);
     let uni = convert_unit_to_symbol(&units);
-    let temp = convert_kelvin_to_unit(weather.main.temp, units);
+    let temp = convert_kelvin_to_unit(weather.main.temp, &units);
     format!(
         "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} {}. Humidity {:.1}%. {}",
         address,
