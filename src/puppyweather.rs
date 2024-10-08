@@ -55,28 +55,40 @@ pub struct Weather {
     weather: Vec<WeatherWeather>,
 }
 
-pub async fn weather(location: &Location, apikey: &str) -> Result<Weather, reqwest::Error> {
+pub async fn weather(location: &Location, apikey: &str, units: &str) -> Result<Weather, reqwest::Error> {
     let forecast_url = format!(
-        "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&lang=en",
-        location.lat, location.lng, apikey
+        "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&lang=en&units={}",
+        location.lat, location.lng, apikey, units
     );
     println!("{}", forecast_url);
     let weather: Weather = reqwest::get(&forecast_url).await?.json().await?;
     Ok(weather)
 }
 
-pub fn weather_string(address: String, location: &Location, weather: Weather) -> String {
+pub fn weather_string(address: String, location: &Location, units: &str, weather: Weather) -> String {
     let emo = emoji(&weather.weather[0].icon);
+    let uni = unit(&units);
     format!(
-        "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} K. Humidity {:.1}%. {}",
+        "weather in {} ({:.6}, {:.6}): {}. Temperature {:.2} {}. Humidity {:.1}%. {}",
         address,
         location.lat,
         location.lng,
         weather.weather[0].description,
         weather.main.temp,
+        uni,
         weather.main.humidity,
         emo
     )
+}
+
+fn unit(unit: &str) -> String {
+    match unit {
+        "standard" => "K",
+        "metric" => "C",
+        "imperial" => "F",
+        _ => "",
+    }
+    .to_string()
 }
 
 fn emoji(icon: &str) -> String {
