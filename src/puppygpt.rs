@@ -10,9 +10,7 @@ use std::{
     sync::Arc,
 };
 
-// const MODEL: &str = "mixtral-8x7b-32768";
-// const MODEL: &str = "llama2-70b-4096";
-const MODEL: &str = "llama3-8b-8192";
+const MODEL: &str = "llama-3.2-11b-vision-preview";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462>";
 
 pub struct Conversation;
