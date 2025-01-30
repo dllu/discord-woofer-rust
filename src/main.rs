@@ -1,3 +1,4 @@
+use blake3;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serenity::all::CreateEmbedFooter;
@@ -8,7 +9,7 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, fs::File, io::prelude::*, sync::Arc};
 
 mod puppychess;
 mod puppygpt;
@@ -160,17 +161,36 @@ impl EventHandler for Handler {
                     typing.stop();
 
                     for (i, part) in parts.iter().enumerate() {
+                        let mut temp_file = None;
                         let mut builder =
                             CreateMessage::new().content(part).reference_message(&msg);
                         if i == 0 {
-                            builder =
-                                builder.embed(CreateEmbed::new().description("Think").footer(
-                                    CreateEmbedFooter::new(truncate_to_2000_chars(&think)),
-                                ));
+                            if think.len() < 2000 {
+                                builder = builder.embed(
+                                    CreateEmbed::new()
+                                        .description("Think")
+                                        .footer(CreateEmbedFooter::new(&think)),
+                                );
+                            } else {
+                                let filename =
+                                    format!("think_{}.txt", blake3::hash(think.as_bytes()));
+                                let mut file = File::create(&filename).unwrap();
+                                file.write_all(think.as_bytes()).unwrap();
+                                let attachment =
+                                    CreateAttachment::path(filename.to_string()).await.unwrap();
+
+                                builder = builder.add_file(attachment);
+                                temp_file = Some(filename);
+                            }
                         }
 
                         if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
                             eprintln!("Error sending reply: {why:?}");
+                        }
+                        if let Some(filename) = temp_file {
+                            if let Err(why) = std::fs::remove_file(filename) {
+                                eprintln!("Error deleting temporary file: {:?}", why);
+                            }
                         }
                     }
                 }
@@ -273,21 +293,4 @@ fn split_string(input: &str) -> Vec<String> {
     }
 
     result
-}
-fn truncate_to_2000_chars(input: &str) -> String {
-    const LIMIT: usize = 2000;
-
-    let mut truncated = String::new();
-    let mut char_count = 0;
-
-    for c in input.chars() {
-        if char_count >= LIMIT {
-            truncated.push_str("...");
-            return truncated;
-        }
-        truncated.push(c);
-        char_count += 1;
-    }
-
-    truncated
 }
