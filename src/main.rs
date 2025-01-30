@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
+use serenity::all::CreateEmbedFooter;
 use serenity::builder::{CreateAttachment, CreateEmbed, CreateMessage};
 use serenity::model::Timestamp;
 use serenity::{
@@ -53,18 +54,18 @@ impl EventHandler for Handler {
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
             if let Err(why) = msg.reply(&ctx.http, content).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy why" {
             if let Err(why) = msg.reply(&ctx.http, puppywhy::why()).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy how" {
             if let Err(why) = msg
                 .reply(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
                 .await
             {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if STONK_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
@@ -90,9 +91,9 @@ impl EventHandler for Handler {
                     std::fs::remove_file(filename).unwrap();
                 }
                 Err(whyy) => {
-                    println!("Error with getting stonk: {:?}", whyy);
+                    eprintln!("Error with getting stonk: {:?}", whyy);
                     if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {whyy:?}")).await {
-                        println!("Error sending message: {:?}", why);
+                        eprintln!("Error sending message: {:?}", why);
                     }
                 }
             }
@@ -126,7 +127,7 @@ impl EventHandler for Handler {
                 puppyweather::weather_string(address.to_string(), &location, &units, weather);
             typing.stop();
             if let Err(why) = msg.reply(&ctx.http, response).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if METAR_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
@@ -137,28 +138,39 @@ impl EventHandler for Handler {
                 .unwrap();
             typing.stop();
             if let Err(why) = msg.reply(&ctx.http, weather).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
             let mut res = puppychess::chess(&ctx, &msg).await;
             if let Err(why2) = res {
-                println!("Error making chess move: {:?}", why2);
+                eprintln!("Error making chess move: {:?}", why2);
 
                 res = puppychess::chess_illegal_move(&ctx, &msg).await;
             }
             if let Err(why) = puppychess::reply(&ctx, &msg, res.unwrap()).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await;
             match response {
-                Ok(res) => {
+                Ok((think, res)) => {
+                    let parts = split_string(&res);
+
                     typing.stop();
-                    let responses = split_string(&res);
-                    for res_split in responses.iter() {
-                        if let Err(why) = msg.reply(&ctx.http, res_split).await {
-                            println!("Error sending message: {:?}", why);
+
+                    for (i, part) in parts.iter().enumerate() {
+                        let mut builder =
+                            CreateMessage::new().content(part).reference_message(&msg);
+                        if i == 0 {
+                            builder =
+                                builder.embed(CreateEmbed::new().description("Think").footer(
+                                    CreateEmbedFooter::new(truncate_to_2000_chars(&think)),
+                                ));
+                        }
+
+                        if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
+                            eprintln!("Error sending reply: {why:?}");
                         }
                     }
                 }
@@ -166,7 +178,7 @@ impl EventHandler for Handler {
                     typing.stop();
 
                     if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {why2:?}")).await {
-                        println!("Error sending message: {:?}", why);
+                        eprintln!("Error sending message: {:?}", why);
                     }
                 }
             }
@@ -246,7 +258,6 @@ fn split_string(input: &str) -> Vec<String> {
             }
             let current_piece = &input[start_index..end_index];
 
-            // Try to find a newline or whitespace to split at, starting from the end of the current piece.
             if let Some(last_newline) = current_piece.rfind("\n\n") {
                 end_index = start_index + last_newline + 1;
             } else if let Some(last_newline) = current_piece.rfind('\n') {
@@ -255,13 +266,28 @@ fn split_string(input: &str) -> Vec<String> {
                 end_index = start_index + last_space + 1;
             }
 
-            // Add the current piece to the result.
             result.push(input[start_index..end_index].to_string());
 
-            // Update the start index for the next piece.
             start_index = end_index;
         }
     }
 
     result
+}
+fn truncate_to_2000_chars(input: &str) -> String {
+    const LIMIT: usize = 2000;
+
+    let mut truncated = String::new();
+    let mut char_count = 0;
+
+    for c in input.chars() {
+        if char_count >= LIMIT {
+            truncated.push_str("...");
+            return truncated;
+        }
+        truncated.push(c);
+        char_count += 1;
+    }
+
+    truncated
 }

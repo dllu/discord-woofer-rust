@@ -179,14 +179,15 @@ pub async fn gpt(
     ctx: &Context,
     msg: &serenity::all::Message,
     api_key: &str,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, String)> {
     let client = reqwest::Client::new();
 
     let messages = get_messages(ctx, msg).await;
     if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
         println!("{messages:#?}");
-        return Ok(replace_discord_emojis(
-            "Debug data has been printed to stdout! :pupsplit:",
+        return Ok((
+            replace_discord_emojis("Debug data has been printed to stdout! :pupsplit:"),
+            "".to_string(),
         ));
     }
 
@@ -216,11 +217,18 @@ pub async fn gpt(
         if output.starts_with("woofer: ") || output.starts_with("Woofer: ") {
             output = choice.message.content[8..].to_string();
         }
-        Ok(format!(
-            "{} {}",
-            OUTPUT_PREFIX,
-            replace_discord_emojis(&output)
-        ))
+
+        let output = replace_discord_emojis(&output);
+        let re = Regex::new(r"(?s)<think>(.*?)</think>\s*(.*)$").unwrap();
+
+        if let Some(captures) = re.captures(&output) {
+            let think = captures.get(1).unwrap().as_str();
+            let message = captures.get(2).unwrap().as_str();
+            Ok((think.to_string(), message.to_string()))
+        } else {
+            println!("{}", &output);
+            Err(anyhow::anyhow!("Malformed Deepseek R1 output"))
+        }
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
     }
