@@ -226,8 +226,7 @@ pub async fn gpt(
             let message = captures.get(2).unwrap().as_str();
             Ok((think.to_string(), message.to_string()))
         } else {
-            println!("{}", &output);
-            Err(anyhow::anyhow!("Malformed Deepseek R1 output"))
+            Ok(("".to_string(), output.to_string()))
         }
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
