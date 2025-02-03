@@ -93,6 +93,31 @@ fn plot_svg(result: &Result) -> anyhow::Result<(String, i64)> {
         max_quote = previous_close;
     }
 
+    use chrono::{TimeZone, Utc};
+    use chrono_tz::America::New_York;
+    let first_dt = Utc
+        .timestamp_opt(min_ts, 0)
+        .single()
+        .ok_or_else(|| anyhow!("Invalid timestamp: {}", min_ts))?
+        .with_timezone(&New_York);
+    let naive_date = first_dt.date_naive();
+    let market_open_naive = naive_date
+        .and_hms_opt(9, 30, 0)
+        .ok_or_else(|| anyhow!("Invalid market open time"))?;
+    let market_close_naive = naive_date
+        .and_hms_opt(16, 0, 0)
+        .ok_or_else(|| anyhow!("Invalid market close time"))?;
+    let market_open = New_York
+        .from_local_datetime(&market_open_naive)
+        .single()
+        .ok_or_else(|| anyhow!("Ambiguous market open datetime"))?;
+    let market_close = New_York
+        .from_local_datetime(&market_close_naive)
+        .single()
+        .ok_or_else(|| anyhow!("Ambiguous market close datetime"))?;
+    let market_open_utc = market_open.with_timezone(&Utc).timestamp();
+    let market_close_utc = market_close.with_timezone(&Utc).timestamp();
+
     const WIDTH: i64 = 2048;
     const HEIGHT: i64 = 768;
     const FONTSIZE: i64 = 64;
@@ -121,19 +146,47 @@ fn plot_svg(result: &Result) -> anyhow::Result<(String, i64)> {
         .to_string(),
     );
 
+    if market_open_utc >= min_ts && market_open_utc <= max_ts {
+        let open_x = (market_open_utc - min_ts) * WIDTH / (max_ts - min_ts);
+        svg_out.push_str(
+            &format!(
+                r#"<line x1="{open_x}" y1="0" x2="{open_x}" y2="{HEIGHT}" stroke="{grey}" stroke-dasharray="16" stroke-width="4" />"#
+            )
+        );
+    }
+    if market_close_utc >= min_ts && market_close_utc <= max_ts {
+        let close_x = (market_close_utc - min_ts) * WIDTH / (max_ts - min_ts);
+        svg_out.push_str(
+            &format!(
+                r#"<line x1="{close_x}" y1="0" x2="{close_x}" y2="{HEIGHT}" stroke="{grey}" stroke-dasharray="16" stroke-width="4" />"#
+            )
+        );
+    }
+
     svg_out.push_str(
-        &format!(r##"<polyline fill="none" stroke="{color}" stroke-width="4" points=""##)
-            .to_string(),
+        &format!(
+            r##"<polyline fill="none" stroke="{color}" opacity="0.5" stroke-width="4" points=""##
+        )
+        .to_string(),
     );
+
+    let mut svg_in_hours =
+        format!(r##"<polyline fill="none" stroke="{color}" stroke-width="6" points=""##)
+            .to_string();
 
     for pair in result.timestamp.iter().zip(quote.iter()) {
         if let (Some(timestamp), Some(close)) = pair {
             let x = (timestamp - min_ts) * WIDTH / (max_ts - min_ts);
             let y = close_y(*close);
             svg_out.push_str(&format!("{x},{y} ").to_string());
+            if *timestamp >= market_open_utc && *timestamp <= market_close_utc {
+                svg_in_hours.push_str(&format!("{x},{y} ").to_string());
+            }
         }
     }
     svg_out.push_str(r##""/>"##);
+    svg_in_hours.push_str(r##""/>"##);
+    svg_out.push_str(&svg_in_hours);
 
     let top = 10 + FONTSIZE;
     svg_out.push_str(
@@ -193,7 +246,7 @@ fn stonk_to_image(stonk_result: &Result, ticker: &str) -> anyhow::Result<(String
 pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
     // TODO use a source that has not been officially discontinued
     let stonk_url = format!(
-        "https://query1.finance.yahoo.com/v8/finance/chart/{}",
+        "https://query1.finance.yahoo.com/v8/finance/chart/{}?includePrePost=true",
         ticker
     );
 
