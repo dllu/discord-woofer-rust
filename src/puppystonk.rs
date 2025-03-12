@@ -251,7 +251,7 @@ pub async fn stonk(ticker: &str) -> anyhow::Result<(String, String, i64)> {
     );
 
     let client = reqwest::Client::builder()
-        .user_agent("curl/8.12.1") // Mimic curl user-agent
+        .user_agent("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705;)") // Mimic curl user-agent
         .build()?;
 
     let response = client.get(&stonk_url).send().await;
