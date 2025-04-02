@@ -33,8 +33,6 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        puppygpt::listen_message(&ctx, &msg).await;
-
         if msg.is_own(&ctx.cache) {
             return;
         }
@@ -250,7 +248,6 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<puppychess::ChessGame>(Arc::new(RwLock::new(HashMap::default())));
-        data.insert::<puppygpt::Conversation>(Arc::new(RwLock::new(HashMap::default())));
     }
 
     // Finally, start a single shard, and start listening to events.

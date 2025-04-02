@@ -2,38 +2,13 @@ use crate::utils;
 use anyhow::anyhow;
 use lazy_static::lazy_static;
 use regex::Regex;
-use ringbuf::Rb;
 use serde::{Deserialize, Serialize};
+use serenity::builder::GetMessages;
 use serenity::prelude::*;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 const MODEL: &str = "qwen-qwq-32b";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462>";
-
-pub struct Conversation;
-impl TypeMapKey for Conversation {
-    type Value = Arc<RwLock<HashMap<String, Box<ringbuf::HeapRb<serenity::all::Message>>>>>;
-}
-
-pub async fn listen_message(ctx: &Context, msg: &serenity::all::Message) {
-    let convo_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<Conversation>()
-            .expect("Expected Conversation")
-            .clone()
-    };
-
-    let mut map = convo_lock.write().await;
-    let entry = map
-        .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
-
-    let _ = (**entry).push_overwrite(msg.clone());
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ChatCompletionResponse {
@@ -67,28 +42,25 @@ struct Payload {
 }
 
 async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Message> {
+    let channel_id = msg.channel_id;
+    let builder = GetMessages::new().before(msg.id).limit(16);
+    let mut history = channel_id.messages(&ctx.http, builder).await.unwrap();
+
+    // Since Serenity returns messages in reverse chronological order, reverse to get oldest first.
+    history.reverse();
+
     let now = chrono::Utc::now();
-    let iso_date = format!("{}", now.format("%Y-%m-%d"));
+    let one_hour_ago = now - chrono::Duration::hours(1);
+    history.retain(|m| m.timestamp.unix_timestamp() >= one_hour_ago.timestamp());
 
-    let convo_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<Conversation>()
-            .expect("Expected Conversation")
-            .clone()
-    };
+    let authors = (*history).iter().map(utils::author_name_from_msg);
 
-    let mut map = convo_lock.write().await;
-    let entry = map
-        .entry(msg.channel_id.to_string())
-        .or_insert_with(|| Box::new(ringbuf::HeapRb::<serenity::all::Message>::new(16)));
-
-    let authors = (**entry).iter().map(utils::author_name_from_msg);
     let mut unique_authors = HashSet::new();
     let authors: Vec<String> = authors
         .filter(move |item| unique_authors.insert(item.clone()))
         .collect();
     let authors = authors.join(", ");
+    let iso_date = format!("{}", now.format("%Y-%m-%d"));
 
     let prompt = format!(
         r##"
@@ -120,7 +92,7 @@ In this conversation, there are the following participants: {authors}."##
         name: Some("Purple Puppy".to_string()),
     }];
 
-    for msg in (**entry).iter() {
+    for msg in (*history).iter() {
         if msg.is_own(&ctx.cache) {
             let mut content = msg.content.clone();
             if content.starts_with(OUTPUT_PREFIX) {
