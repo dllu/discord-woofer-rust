@@ -165,22 +165,24 @@ impl EventHandler for Handler {
                         let mut builder =
                             CreateMessage::new().content(part).reference_message(&msg);
                         if i == 0 {
-                            if think.len() < 2000 {
-                                builder = builder.embed(
-                                    CreateEmbed::new()
-                                        .description("Think")
-                                        .footer(CreateEmbedFooter::new(&think)),
-                                );
-                            } else {
-                                let filename =
-                                    format!("think_{}.txt", blake3::hash(think.as_bytes()));
-                                let mut file = File::create(&filename).unwrap();
-                                file.write_all(think.as_bytes()).unwrap();
-                                let attachment =
-                                    CreateAttachment::path(filename.to_string()).await.unwrap();
+                            if let Some(ref thonk) = think {
+                                if thonk.len() < 2000 {
+                                    builder = builder.embed(
+                                        CreateEmbed::new()
+                                            .description("Think")
+                                            .footer(CreateEmbedFooter::new(thonk)),
+                                    );
+                                } else {
+                                    let filename =
+                                        format!("think_{}.txt", blake3::hash(thonk.as_bytes()));
+                                    let mut file = File::create(&filename).unwrap();
+                                    file.write_all(thonk.as_bytes()).unwrap();
+                                    let attachment =
+                                        CreateAttachment::path(filename.to_string()).await.unwrap();
 
-                                builder = builder.add_file(attachment);
-                                temp_file = Some(filename);
+                                    builder = builder.add_file(attachment);
+                                    temp_file = Some(filename);
+                                }
                             }
                         }
 

@@ -49,6 +49,10 @@ struct Choice {
 struct Message {
     role: String,
     content: String,
+
+    #[serde(default, skip_serializing)]
+    reasoning: Option<String>,
+
     name: Option<String>,
 }
 
@@ -58,8 +62,8 @@ struct Payload {
     model: String,
     temperature: f64,
     top_p: f64,
-    presence_penalty: f64,
-    frequency_penalty: f64,
+    max_completion_tokens: i64,
+    reasoning_format: String,
 }
 
 async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Message> {
@@ -104,12 +108,15 @@ Do not introduce yourself unnecessarily unless asked directly who you are. Alway
 
 Always try to respond in at least one or two sentences unless explicitly asked not to.
 
+Please be as concise as possible in your thought process.
+
 In this conversation, there are the following participants: {authors}."##
     );
 
     let mut messages = vec![Message {
         role: "system".to_string(),
         content: prompt,
+        reasoning: None,
         name: Some("Purple Puppy".to_string()),
     }];
 
@@ -125,6 +132,7 @@ In this conversation, there are the following participants: {authors}."##
             messages.push(Message {
                 role: "assistant".to_string(),
                 content: sanitize_discord_emojis(content),
+                reasoning: None,
                 name: Some("woofer".to_string()),
             });
         } else {
@@ -136,6 +144,7 @@ In this conversation, there are the following participants: {authors}."##
             messages.push(Message {
                 role: "user".to_string(),
                 content: format!("{}: {}", author_name, sanitize_discord_emojis(&content)),
+                reasoning: None,
                 name: Some(author_name),
             });
         }
@@ -180,14 +189,14 @@ pub async fn gpt(
     ctx: &Context,
     msg: &serenity::all::Message,
     api_key: &str,
-) -> anyhow::Result<(String, String)> {
+) -> anyhow::Result<(Option<String>, String)> {
     let client = reqwest::Client::new();
 
     let messages = get_messages(ctx, msg).await;
     if msg.content == "puppy gpt debug" && msg.author.name == "purplepuppy" {
         println!("{messages:#?}");
         return Ok((
-            replace_discord_emojis("Debug data has been printed to stdout! :pupsplit:"),
+            Some("Debug data has been printed to stdout! :pupsplit:".to_string()),
             "".to_string(),
         ));
     }
@@ -197,8 +206,8 @@ pub async fn gpt(
         model: MODEL.to_string(),
         temperature: 0.6,
         top_p: 0.95,
-        presence_penalty: 0.5,
-        frequency_penalty: 0.5,
+        max_completion_tokens: 16384,
+        reasoning_format: "parsed".to_string(),
     };
 
     let response = client
@@ -220,16 +229,8 @@ pub async fn gpt(
             output = choice.message.content[8..].to_string();
         }
 
-        let output = replace_discord_emojis(&output);
-        let re = Regex::new(r"(?s)<think>(.*?)</think>\s*(.*)$").unwrap();
-
-        if let Some(captures) = re.captures(&output) {
-            let think = captures.get(1).unwrap().as_str();
-            let message = captures.get(2).unwrap().as_str();
-            Ok((think.to_string(), message.to_string()))
-        } else {
-            Ok(("".to_string(), output.to_string()))
-        }
+        let message = replace_discord_emojis(&output);
+        Ok((choice.message.reasoning.clone(), message.to_string()))
     } else {
         Err(anyhow::anyhow!("No choices found in the response"))
     }
