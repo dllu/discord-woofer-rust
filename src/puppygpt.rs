@@ -57,6 +57,7 @@ struct Payload {
     messages: Vec<Message>,
     model: String,
     temperature: f64,
+    top_p: f64,
     presence_penalty: f64,
     frequency_penalty: f64,
 }
@@ -194,7 +195,8 @@ pub async fn gpt(
     let payload = Payload {
         messages,
         model: MODEL.to_string(),
-        temperature: 1.0,
+        temperature: 0.6,
+        top_p: 0.95,
         presence_penalty: 0.5,
         frequency_penalty: 0.5,
     };
