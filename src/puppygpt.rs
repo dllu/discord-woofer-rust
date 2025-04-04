@@ -48,6 +48,7 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
 
     // Since Serenity returns messages in reverse chronological order, reverse to get oldest first.
     history.reverse();
+    history.push(msg.clone());
 
     let now = chrono::Utc::now();
     let one_hour_ago = now - chrono::Duration::hours(1);
