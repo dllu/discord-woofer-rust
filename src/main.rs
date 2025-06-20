@@ -14,6 +14,7 @@ mod puppygpt;
 mod puppystonk;
 mod puppyweather;
 mod puppywhy;
+mod puppyno;
 mod utils;
 
 struct Handler {
@@ -47,6 +48,7 @@ impl EventHandler for Handler {
             static ref STONK_RE: Regex = Regex::new(r"^puppy stonk\s\w+").unwrap();
             static ref CHESS_RE: Regex = Regex::new(r"^puppy chess\s\w*").unwrap();
             static ref GPT_RE: Regex = Regex::new(r"^puppy gpt\s\w*").unwrap();
+            static ref NO_RE: Regex = Regex::new(r"^puppy n+o+").unwrap();
         }
         const ERROR_MSG: &str = "<a:pupgone:1061133208676204605> It didn't work!";
         let content = &msg.content;
@@ -165,6 +167,23 @@ impl EventHandler for Handler {
                 Err(why2) => {
                     typing.stop();
 
+                    if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {why2:?}")).await {
+                        println!("Error sending message: {:?}", why);
+                    }
+                }
+            }
+        } else if NO_RE.is_match(&lower) {
+            let typing = msg.channel_id.start_typing(&ctx.http);
+            let res = puppyno::no().await;
+            match res {
+                Ok(reason) => {
+                    typing.stop();
+                    if let Err(why) = msg.reply(&ctx.http, reason).await {
+                        println!("Error sending message: {:?}", why);
+                    }
+                }
+                Err(why2) => {
+                    typing.stop();
                     if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {why2:?}")).await {
                         println!("Error sending message: {:?}", why);
                     }
