@@ -25,6 +25,6 @@ supported commands:
 
 ![image](https://github.com/dllu/discord-woofer-rust/assets/14482624/59e5c0cd-a531-4ce7-84d5-8077dd9ae5ef)
 
-* `puppy gpt [question]` asks a question to `mixtral-8x7b-32768` via the [Groq API](https://console.groq.com/)
+* `puppy gpt [question]` asks a question to an LLM via the [Groq API](https://console.groq.com/)
 
 ![image](https://github.com/dllu/discord-woofer-rust/assets/14482624/2f0228dc-5c3f-4026-a353-1e61e47e5886)

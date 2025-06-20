@@ -1,5 +1,7 @@
+use blake3;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serenity::all::CreateEmbedFooter;
 use serenity::builder::{CreateAttachment, CreateEmbed, CreateMessage};
 use serenity::model::Timestamp;
 use serenity::{
@@ -7,7 +9,7 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, fs::File, io::prelude::*, sync::Arc};
 
 mod puppychess;
 mod puppygpt;
@@ -32,15 +34,13 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        puppygpt::listen_message(&ctx, &msg).await;
-
         if msg.is_own(&ctx.cache) {
             return;
         }
 
         lazy_static! {
             static ref WOOF_RE: Regex = Regex::new(
-                r"^((oua+f+\s*)+|(w(a|o|0|u|🌕)+r*f\s*)+|(aw+(o|0|🌕)+\s*)+|(b(a|o)+rk\s*)+|(汪\s*)+|(ワン\s*)+|(わん\s*)+|(гав\s*)+|(uowhf\s*)+)+(!|！)*$"
+                r"^((oua+f+\s*)+|(w(a|o|0|u|🌕)+r*f\s*)+|(aw+(o|0|🌕)+\s*)+|(b(a|o)+rk\s*)+|(汪\s*)+|(ワン\s*)+|(わん\s*)+|(гав\s*)+|(uowhf\s*)+|(arflee+bloo+\s*)+)+(!|！)*$"
             )
             .unwrap();
             static ref WEATHER_RE: Regex = Regex::new(r"^puppy weather\s\w+").unwrap();
@@ -55,18 +55,18 @@ impl EventHandler for Handler {
         let lower = content.to_lowercase();
         if WOOF_RE.is_match(&lower) {
             if let Err(why) = msg.reply(&ctx.http, content).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy why" {
             if let Err(why) = msg.reply(&ctx.http, puppywhy::why()).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy how" {
             if let Err(why) = msg
                 .reply(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
                 .await
             {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if STONK_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
@@ -92,9 +92,9 @@ impl EventHandler for Handler {
                     std::fs::remove_file(filename).unwrap();
                 }
                 Err(whyy) => {
-                    println!("Error with getting stonk: {:?}", whyy);
+                    eprintln!("Error with getting stonk: {:?}", whyy);
                     if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {whyy:?}")).await {
-                        println!("Error sending message: {:?}", why);
+                        eprintln!("Error sending message: {:?}", why);
                     }
                 }
             }
@@ -128,7 +128,7 @@ impl EventHandler for Handler {
                 puppyweather::weather_string(address.to_string(), &location, &units, weather);
             typing.stop();
             if let Err(why) = msg.reply(&ctx.http, response).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if METAR_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
@@ -139,28 +139,60 @@ impl EventHandler for Handler {
                 .unwrap();
             typing.stop();
             if let Err(why) = msg.reply(&ctx.http, weather).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if CHESS_RE.is_match(&lower) {
             let mut res = puppychess::chess(&ctx, &msg).await;
             if let Err(why2) = res {
-                println!("Error making chess move: {:?}", why2);
+                eprintln!("Error making chess move: {:?}", why2);
 
                 res = puppychess::chess_illegal_move(&ctx, &msg).await;
             }
             if let Err(why) = puppychess::reply(&ctx, &msg, res.unwrap()).await {
-                println!("Error sending message: {:?}", why);
+                eprintln!("Error sending message: {:?}", why);
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
             let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await;
             match response {
-                Ok(res) => {
+                Ok((think, res)) => {
+                    let parts = split_string(&res);
+
                     typing.stop();
-                    let responses = split_string(&res);
-                    for res_split in responses.iter() {
-                        if let Err(why) = msg.reply(&ctx.http, res_split).await {
-                            println!("Error sending message: {:?}", why);
+
+                    for (i, part) in parts.iter().enumerate() {
+                        let mut temp_file = None;
+                        let mut builder =
+                            CreateMessage::new().content(part).reference_message(&msg);
+                        if i == 0 {
+                            if let Some(ref thonk) = think {
+                                if thonk.len() < 2000 {
+                                    builder = builder.embed(
+                                        CreateEmbed::new()
+                                            .description("Think")
+                                            .footer(CreateEmbedFooter::new(thonk)),
+                                    );
+                                } else {
+                                    let filename =
+                                        format!("think_{}.txt", blake3::hash(thonk.as_bytes()));
+                                    let mut file = File::create(&filename).unwrap();
+                                    file.write_all(thonk.as_bytes()).unwrap();
+                                    let attachment =
+                                        CreateAttachment::path(filename.to_string()).await.unwrap();
+
+                                    builder = builder.add_file(attachment);
+                                    temp_file = Some(filename);
+                                }
+                            }
+                        }
+
+                        if let Err(why) = msg.channel_id.send_message(&ctx.http, builder).await {
+                            eprintln!("Error sending reply: {why:?}");
+                        }
+                        if let Some(filename) = temp_file {
+                            if let Err(why) = std::fs::remove_file(filename) {
+                                eprintln!("Error deleting temporary file: {:?}", why);
+                            }
                         }
                     }
                 }
@@ -168,7 +200,7 @@ impl EventHandler for Handler {
                     typing.stop();
 
                     if let Err(why) = msg.reply(&ctx.http, format!("{ERROR_MSG} {why2:?}")).await {
-                        println!("Error sending message: {:?}", why);
+                        eprintln!("Error sending message: {:?}", why);
                     }
                 }
             }
@@ -235,7 +267,6 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<puppychess::ChessGame>(Arc::new(RwLock::new(HashMap::default())));
-        data.insert::<puppygpt::Conversation>(Arc::new(RwLock::new(HashMap::default())));
     }
 
     // Finally, start a single shard, and start listening to events.
@@ -265,7 +296,6 @@ fn split_string(input: &str) -> Vec<String> {
             }
             let current_piece = &input[start_index..end_index];
 
-            // Try to find a newline or whitespace to split at, starting from the end of the current piece.
             if let Some(last_newline) = current_piece.rfind("\n\n") {
                 end_index = start_index + last_newline + 1;
             } else if let Some(last_newline) = current_piece.rfind('\n') {
@@ -274,10 +304,8 @@ fn split_string(input: &str) -> Vec<String> {
                 end_index = start_index + last_space + 1;
             }
 
-            // Add the current piece to the result.
             result.push(input[start_index..end_index].to_string());
 
-            // Update the start index for the next piece.
             start_index = end_index;
         }
     }

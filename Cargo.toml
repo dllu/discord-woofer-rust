@@ -7,6 +7,7 @@ authors = ["daniel lu <daniel@lawrence.lu>"]
 [dependencies]
 anyhow = "1.0"
 chrono = "0.4"
+chrono-tz = "0.10"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 regex = "1.10.3"
@@ -20,3 +21,4 @@ serenity = { version = "0.12", default-features = false, features = ["client", "
 serde = "1.0"
 tokio = { version = "1.36", features = ["macros", "rt-multi-thread"] }
 shakmaty = "0.26.0"
+blake3 = "1.5"
