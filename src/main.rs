@@ -1,4 +1,3 @@
-use blake3;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serenity::all::CreateEmbedFooter;
@@ -17,12 +16,14 @@ mod puppystonk;
 mod puppyweather;
 mod puppywhy;
 mod utils;
+use rand::prelude::SliceRandom;
 
 struct Handler {
     openweather_token: String,
     google_maps_token: String,
     groq_token: String,
     avwx_token: String,
+    no_reasons: Vec<String>,
 }
 
 #[async_trait]
@@ -64,6 +65,11 @@ impl EventHandler for Handler {
                 .reply(&ctx.http, "https://github.com/dllu/discord-woofer-rust")
                 .await
             {
+                eprintln!("Error sending message: {:?}", why);
+            }
+        } else if lower == "puppy no" {
+            let reason = self.no_reasons.choose(&mut rand::thread_rng()).unwrap();
+            if let Err(why) = msg.reply(&ctx.http, reason).await {
                 eprintln!("Error sending message: {:?}", why);
             }
         } else if STONK_RE.is_match(&lower) {
@@ -231,6 +237,12 @@ async fn main() {
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 
+    let mut file = File::open("assets/no_reasons.json").expect("Failed to open no_reasons.json");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("Failed to read no_reasons.json");
+    let no_reasons: Vec<String> = serde_json::from_str(&contents).expect("Invalid JSON format");
+
     // Create a new instance of the Client, logging in as a bot. This will
     // automatically prepend your bot token with "Bot ", which is a requirement
     // by Discord for bot users.
@@ -239,6 +251,7 @@ async fn main() {
         google_maps_token,
         groq_token,
         avwx_token,
+        no_reasons,
     };
 
     let mut client = Client::builder(&discord_token, intents)
