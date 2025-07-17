@@ -45,14 +45,15 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
     let channel_id = msg.channel_id;
     let builder = GetMessages::new().before(msg.id).limit(16);
     let mut history = channel_id.messages(&ctx.http, builder).await.unwrap();
+    let latest_author = utils::author_name_from_msg(&msg);
 
     // Since Serenity returns messages in reverse chronological order, reverse to get oldest first.
     history.reverse();
     history.push(msg.clone());
 
     let now = chrono::Utc::now();
-    let one_hour_ago = now - chrono::Duration::hours(1);
-    history.retain(|m| m.timestamp.unix_timestamp() >= one_hour_ago.timestamp());
+    let one_day_ago = now - chrono::Duration::hours(24);
+    history.retain(|m| m.timestamp.unix_timestamp() >= one_day_ago.timestamp());
 
     let authors = (*history).iter().map(utils::author_name_from_msg);
 
@@ -83,7 +84,7 @@ Always try to respond in at least one or two sentences unless explicitly asked n
 
 Please be as concise as possible in your thought process.
 
-In this conversation, there are the following participants: {authors}."##
+In this conversation, there are the following participants: {authors}. You are responding to the latest message by {latest_author}."##
     );
 
     let mut messages = vec![Message {
