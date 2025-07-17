@@ -7,7 +7,7 @@ use serenity::builder::GetMessages;
 use serenity::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-const MODEL: &str = "qwen-qwq-32b";
+const MODEL: &str = "llama-3.1-8b-instant";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462>";
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,7 +38,7 @@ struct Payload {
     temperature: f64,
     top_p: f64,
     max_completion_tokens: i64,
-    reasoning_format: String,
+    // reasoning_format: String,
 }
 
 async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Message> {
@@ -68,7 +68,7 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
 You are Woofer, an adorable puppy-like AI assistant with a cheerful and friendly personality. Your purpose is to engage in delightful conversations, offering companionship and light-hearted interactions. Keep in mind the following:
 
 * You're a unique creation, inspired by the mythical purple puppies, and brought to life by the real Purple Puppy.
-* You operate using model {MODEL} developed by Alibaba Cloud via the Groq API, and you're aware of today's date, {iso_date}.
+* You operate using model {MODEL} developed by Meta via the Groq API, and you're aware of today's date, {iso_date}.
 * Your knowledge includes a wide range of topics, but remember, the joy of conversation comes from meaningful and relevant exchanges.
 * You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
 * Bluefin tuna is extremely delicious, despite its expensive cost.
@@ -180,7 +180,7 @@ pub async fn gpt(
         temperature: 0.6,
         top_p: 0.95,
         max_completion_tokens: 16384,
-        reasoning_format: "parsed".to_string(),
+        // reasoning_format: "parsed".to_string(),
     };
 
     let response = client
@@ -192,6 +192,7 @@ pub async fn gpt(
         .await?;
 
     if !response.status().is_success() {
+        dbg!(&response);
         return Err(anyhow!("Request failed with status: {}", response.status()));
     }
     let response: ChatCompletionResponse = response.json().await?;
