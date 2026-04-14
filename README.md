@@ -25,6 +25,6 @@ supported commands:
 
 ![image](https://github.com/dllu/discord-woofer-rust/assets/14482624/59e5c0cd-a531-4ce7-84d5-8077dd9ae5ef)
 
-* `puppy gpt [question]` asks a question to an LLM via the [Groq API](https://console.groq.com/)
+* `puppy gpt [question]` asks a question to Nemotron Nano via the [OpenRouter API](https://openrouter.ai/nvidia/nemotron-nano-12b-v2-vl:free/api)
 
 ![image](https://github.com/dllu/discord-woofer-rust/assets/14482624/2f0228dc-5c3f-4026-a353-1e61e47e5886)

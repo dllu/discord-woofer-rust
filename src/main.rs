@@ -21,7 +21,7 @@ use rand::prelude::SliceRandom;
 struct Handler {
     openweather_token: String,
     google_maps_token: String,
-    groq_token: String,
+    openrouter_api_key: String,
     avwx_token: String,
     no_reasons: Vec<String>,
 }
@@ -157,7 +157,7 @@ impl EventHandler for Handler {
             }
         } else if GPT_RE.is_match(&lower) {
             let typing = msg.channel_id.start_typing(&ctx.http);
-            let response = puppygpt::gpt(&ctx, &msg, &self.groq_token).await;
+            let response = puppygpt::gpt(&ctx, &msg, &self.openrouter_api_key).await;
             match response {
                 Ok((think, res)) => {
                     let parts = split_string(&res);
@@ -230,7 +230,8 @@ async fn main() {
         env::var("FORECAST_TOKEN").expect("Expected $FORECAST_TOKEN in the environment");
     let google_maps_token =
         env::var("GOOGLE_MAPS_TOKEN").expect("Expected $GOOGLE_MAPS_TOKEN in the environment");
-    let groq_token = env::var("GROQ_TOKEN").expect("Expected $GROQ_TOKEN in the environment");
+    let openrouter_api_key =
+        env::var("OPENROUTER_API_KEY").expect("Expected $OPENROUTER_API_KEY in the environment");
     let avwx_token = env::var("AVWX_TOKEN").expect("Expected $AVWX_TOKEN in the environment");
 
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -249,7 +250,7 @@ async fn main() {
     let handler = Handler {
         openweather_token,
         google_maps_token,
-        groq_token,
+        openrouter_api_key,
         avwx_token,
         no_reasons,
     };

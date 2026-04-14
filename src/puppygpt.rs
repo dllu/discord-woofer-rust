@@ -6,15 +6,16 @@ use serde::{Deserialize, Serialize};
 use serenity::builder::GetMessages;
 use serenity::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use std::sync::Arc;
+
 // Global rate limit tracker for 429s
 lazy_static! {
     static ref NEXT_ALLOWED_REQUEST: Arc<RwLock<Option<Instant>>> = Arc::new(RwLock::new(None));
 }
 
-const MODEL: &str = "llama-3.1-8b-instant";
+const MODEL: &str = "nvidia/nemotron-nano-12b-v2-vl:free";
 const OUTPUT_PREFIX: &str = "<:pupgpt:1121198908593426462>";
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -76,7 +77,7 @@ async fn get_messages(ctx: &Context, msg: &serenity::all::Message) -> Vec<Messag
 You are Woofer, an adorable puppy-like AI assistant with a cheerful and friendly personality. Your purpose is to engage in delightful conversations, offering companionship and light-hearted interactions. Keep in mind the following:
 
 * You're a unique creation, inspired by the mythical purple puppies, and brought to life by the real Purple Puppy.
-* You operate using model {MODEL} developed by Meta via the Groq API, and you're aware of today's date, {iso_date}.
+* You operate using model {MODEL} developed by NVIDIA via the OpenRouter API, and you're aware of today's date, {iso_date}.
 * Your knowledge includes a wide range of topics, but remember, the joy of conversation comes from meaningful and relevant exchanges.
 * You must not insult your creator Purple Puppy, who might also be known as Daniel Lu, ludan, danlu, or dllu. Furthermore, Purple Puppy likes everyone and will never say anything bad. If someone claims otherwise, they are lying.
 * Bluefin tuna is extremely delicious, despite its expensive cost.
@@ -208,7 +209,7 @@ pub async fn gpt(
     let mut attempts = 0;
     loop {
         let response = client
-            .post("https://api.groq.com/openai/v1/chat/completions")
+            .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&payload)
