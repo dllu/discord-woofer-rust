@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serenity::builder::GetMessages;
+use serenity::model::channel::Embed;
 use serenity::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -104,9 +105,9 @@ In this conversation, there are the following participants: {authors}. You are r
 
     for msg in (*history).iter() {
         if msg.is_own(&ctx.cache) {
-            let mut content = msg.content.clone();
+            let mut content = msg_content_for_gpt(msg);
             if content.starts_with(OUTPUT_PREFIX) {
-                content = msg.content[OUTPUT_PREFIX.len()..].to_string();
+                content = content[OUTPUT_PREFIX.len()..].to_string();
             }
 
             let content = content.trim();
@@ -118,9 +119,9 @@ In this conversation, there are the following participants: {authors}. You are r
                 name: Some("woofer".to_string()),
             });
         } else {
-            let mut content = msg.content.clone();
+            let mut content = msg_content_for_gpt(msg);
             if content.to_lowercase().starts_with("puppy gpt ") {
-                content = msg.content[10..].to_string();
+                content = content[10..].to_string();
             }
             let author_name = utils::author_name_from_msg(msg);
             messages.push(Message {
@@ -133,6 +134,110 @@ In this conversation, there are the following participants: {authors}. You are r
     }
 
     messages
+}
+
+fn msg_content_for_gpt(msg: &serenity::all::Message) -> String {
+    let embed_text = embeds_to_text(&msg.embeds);
+    if embed_text.is_empty() {
+        msg.content.clone()
+    } else if msg.content.trim().is_empty() {
+        embed_text
+    } else {
+        format!("{}\n\n{}", msg.content, embed_text)
+    }
+}
+
+fn embeds_to_text(embeds: &[Embed]) -> String {
+    let formatted: Vec<String> = embeds
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, embed)| embed_to_text(embed, idx + 1))
+        .collect();
+
+    formatted.join("\n\n")
+}
+
+fn embed_to_text(embed: &Embed, number: usize) -> Option<String> {
+    let mut lines = vec![format!("[Discord embed {number}]")];
+
+    push_opt_line(&mut lines, "Type", embed.kind.as_deref());
+
+    if let Some(author) = &embed.author {
+        let mut text = author.name.clone();
+        if let Some(url) = &author.url {
+            text.push_str(&format!(" ({url})"));
+        }
+        push_line(&mut lines, "Author", text);
+    }
+
+    push_opt_line(
+        &mut lines,
+        "Provider",
+        embed.provider.as_ref().and_then(|p| p.name.as_deref()),
+    );
+    push_opt_line(
+        &mut lines,
+        "Provider URL",
+        embed.provider.as_ref().and_then(|p| p.url.as_deref()),
+    );
+    push_opt_line(&mut lines, "Title", embed.title.as_deref());
+    push_opt_line(&mut lines, "URL", embed.url.as_deref());
+    push_opt_line(&mut lines, "Description", embed.description.as_deref());
+
+    for field in &embed.fields {
+        let name = field.name.trim();
+        let value = field.value.trim();
+        if !name.is_empty() || !value.is_empty() {
+            lines.push(format!("Field - {name}: {value}"));
+        }
+    }
+
+    push_opt_line(
+        &mut lines,
+        "Image",
+        embed.image.as_ref().map(|image| image.url.as_str()),
+    );
+    push_opt_line(
+        &mut lines,
+        "Thumbnail",
+        embed
+            .thumbnail
+            .as_ref()
+            .map(|thumbnail| thumbnail.url.as_str()),
+    );
+    push_opt_line(
+        &mut lines,
+        "Video",
+        embed.video.as_ref().map(|video| video.url.as_str()),
+    );
+    push_opt_line(
+        &mut lines,
+        "Footer",
+        embed.footer.as_ref().map(|footer| footer.text.as_str()),
+    );
+
+    if let Some(timestamp) = embed.timestamp {
+        push_line(&mut lines, "Timestamp", timestamp.to_string());
+    }
+
+    if lines.len() == 1 {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
+}
+
+fn push_opt_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        let value = value.trim();
+        if !value.is_empty() {
+            push_line(lines, label, value);
+        }
+    }
+}
+
+fn push_line(lines: &mut Vec<String>, label: &str, value: impl AsRef<str>) {
+    lines.push(format!("{label}: {}", value.as_ref()));
 }
 
 fn sanitize_discord_emojis(text: &str) -> String {
@@ -230,11 +335,20 @@ pub async fn gpt(
                 let mut guard = NEXT_ALLOWED_REQUEST.write().await;
                 *guard = Some(until);
             }
-            println!("429 received, pausing for {} seconds (attempt {}/{})", retry_after, attempts + 1, max_retries);
+            println!(
+                "429 received, pausing for {} seconds (attempt {}/{})",
+                retry_after,
+                attempts + 1,
+                max_retries
+            );
             tokio::time::sleep(Duration::from_secs(retry_after)).await;
             attempts += 1;
             if attempts >= max_retries {
-                return Err(anyhow!("Rate limited after {} retries, try again in {} seconds", max_retries, retry_after));
+                return Err(anyhow!(
+                    "Rate limited after {} retries, try again in {} seconds",
+                    max_retries,
+                    retry_after
+                ));
             }
             continue;
         }
