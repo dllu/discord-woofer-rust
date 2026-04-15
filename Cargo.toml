@@ -5,21 +5,21 @@ edition = "2018"
 authors = ["daniel lu <daniel@lawrence.lu>"]
 
 [dependencies]
-anyhow = "1.0"
-chrono = "0.4"
-chrono-tz = "0.10"
-lazy_static = "1.4.0"
-rand = "0.8.5"
-regex = "1.10.3"
-reqwest = { version = "0.11.24", features = ["json"] }
+anyhow = "1.0.102"
+chrono = "0.4.44"
+chrono-tz = "0.10.4"
+lazy_static = "1.5.0"
+rand = "0.9.4"
+regex = "1.12.3"
+reqwest = { version = "0.12.28", features = ["json"] }
 resvg = {version = "0.40.0"}
-ringbuf = "0.3"
-rusty-money = "0.4.1"
-uuid = { version = "1.7", features = ["v4"] }
-url = "2.5.0"
-serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }
-serde = "1.0"
-serde_json = "1.0"
-tokio = { version = "1.36", features = ["macros", "rt-multi-thread"] }
+ringbuf = "0.3.3"
+rusty-money = "0.4.2"
+uuid = { version = "1.23.0", features = ["v4"] }
+url = "2.5.8"
+serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "rustls_backend", "model",  "cache"] }
+serde = "1.0.228"
+serde_json = "1.0.149"
+tokio = { version = "1.52.0", features = ["macros", "rt-multi-thread"] }
 shakmaty = "0.26.0"
-blake3 = "1.5"
+blake3 = "1.8.4"

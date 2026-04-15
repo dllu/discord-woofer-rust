@@ -109,7 +109,7 @@ In this conversation, there are the following participants: {authors}. You are r
     }];
 
     for msg in (*history).iter() {
-        if msg.is_own(&ctx.cache) {
+        if msg.author.id == ctx.cache.current_user().id {
             let mut content = msg_content_for_gpt(msg);
             if content.starts_with(OUTPUT_PREFIX) {
                 content = content[OUTPUT_PREFIX.len()..].to_string();

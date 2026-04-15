@@ -17,7 +17,7 @@ mod puppystonk;
 mod puppyweather;
 mod puppywhy;
 mod utils;
-use rand::prelude::SliceRandom;
+use rand::prelude::IndexedRandom;
 
 struct Handler {
     openweather_token: String,
@@ -35,7 +35,7 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.is_own(&ctx.cache) {
+        if msg.author.id == ctx.cache.current_user().id {
             return;
         }
 
@@ -69,7 +69,7 @@ impl EventHandler for Handler {
                 eprintln!("Error sending message: {:?}", why);
             }
         } else if lower == "puppy no" {
-            let reason = self.no_reasons.choose(&mut rand::thread_rng()).unwrap();
+            let reason = self.no_reasons.choose(&mut rand::rng()).unwrap();
             if let Err(why) = msg.reply(&ctx.http, reason).await {
                 eprintln!("Error sending message: {:?}", why);
             }

@@ -1,4 +1,4 @@
-use rand::distributions::{weighted::WeightedIndex, Distribution};
+use rand::distr::{weighted::WeightedIndex, Distribution};
 
 macro_rules! weighted_choice_fn {
     ( $( ($x:expr, $y:expr) ),* ) => {
@@ -10,7 +10,7 @@ macro_rules! weighted_choice_fn {
                 $($y,)*
             ];
             let wc = WeightedIndex::new(&weights).unwrap();
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             items[wc.sample(&mut rng)]
         }
     };
@@ -26,7 +26,7 @@ macro_rules! weighted_choice {
                 $($y.to_string(),)*
             ];
             let wc = WeightedIndex::new(&weights).unwrap();
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             items[wc.sample(&mut rng)].clone()
         }
     };
