@@ -5,6 +5,7 @@ use serenity::builder::{CreateAttachment, CreateEmbed, CreateMessage};
 use serenity::model::Timestamp;
 use serenity::{
     async_trait,
+    model::guild::Emoji,
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
@@ -217,8 +218,39 @@ impl EventHandler for Handler {
     // private channels, and more.
     //
     // In this case, just print what the current user's username is.
-    async fn ready(&self, _: Context, ready: Ready) {
+    async fn ready(&self, ctx: Context, ready: Ready) {
+        let mut emojis = Vec::new();
+        for guild_status in &ready.guilds {
+            match guild_status.id.emojis(&ctx.http).await {
+                Ok(guild_emojis) => emojis.extend(guild_emojis),
+                Err(why) => eprintln!(
+                    "Error fetching emojis for guild {}: {:?}",
+                    guild_status.id, why
+                ),
+            }
+        }
+
+        let emoji_count = puppygpt::set_available_emojis(emojis);
         println!("{} is connected!", ready.user.name);
+        println!("Loaded {emoji_count} available custom emojis for puppy gpt");
+    }
+
+    async fn guild_emojis_update(
+        &self,
+        ctx: Context,
+        _guild_id: serenity::all::GuildId,
+        _current_state: HashMap<serenity::all::EmojiId, Emoji>,
+    ) {
+        let mut emojis = Vec::new();
+        for guild_id in ctx.cache.guilds() {
+            match guild_id.emojis(&ctx.http).await {
+                Ok(guild_emojis) => emojis.extend(guild_emojis),
+                Err(why) => eprintln!("Error fetching emojis for guild {guild_id}: {why:?}"),
+            }
+        }
+
+        let emoji_count = puppygpt::set_available_emojis(emojis);
+        println!("Reloaded {emoji_count} available custom emojis for puppy gpt");
     }
 }
 
@@ -234,7 +266,9 @@ async fn main() {
         env::var("OPENROUTER_API_KEY").expect("Expected $OPENROUTER_API_KEY in the environment");
     let avwx_token = env::var("AVWX_TOKEN").expect("Expected $AVWX_TOKEN in the environment");
 
-    let intents = GatewayIntents::GUILD_MESSAGES
+    let intents = GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_EMOJIS_AND_STICKERS
+        | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 

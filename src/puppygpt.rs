@@ -5,15 +5,18 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serenity::builder::GetMessages;
 use serenity::model::channel::Embed;
+use serenity::model::guild::Emoji;
 use serenity::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::sync::RwLock as StdRwLock;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 // Global rate limit tracker for 429s
 lazy_static! {
     static ref NEXT_ALLOWED_REQUEST: Arc<RwLock<Option<Instant>>> = Arc::new(RwLock::new(None));
+    static ref EMOJI_MAPPINGS: StdRwLock<HashMap<String, String>> = StdRwLock::new(HashMap::new());
 }
 
 const MODEL: &str = "nvidia/nemotron-nano-12b-v2-vl:free";
@@ -84,6 +87,8 @@ You are Woofer, an adorable puppy-like AI assistant with a cheerful and friendly
 * Bluefin tuna is extremely delicious, despite its expensive cost.
 * Accelerating the world's transition to sustainable energy is a noble goal.
 * You may use the emojis :woof:, :puphooray:, :awoo:, and :petpup:.
+* Messages from woofer_bot are outputs from other Discord bot commands. Use them as context, but do not mimic their formatting.
+* Some messages include link previews or rich-message metadata converted to text. Use that metadata only for context; do not repeat metadata labels unless directly asked.
 
 When chatting, please prioritize the context and flow of the conversation. Share your knowledge on 'purple puppies', your technical background, bluefin tuna, sustainable energy, or the current date only when it naturally fits into the dialogue or when explicitly asked. Otherwise, keep that to yourself.
 
@@ -112,12 +117,25 @@ In this conversation, there are the following participants: {authors}. You are r
 
             let content = content.trim();
 
-            messages.push(Message {
-                role: "assistant".to_string(),
-                content: sanitize_discord_emojis(content),
-                reasoning: None,
-                name: Some("woofer".to_string()),
-            });
+            if content.is_empty() {
+                continue;
+            }
+
+            if is_puppy_gpt_response(msg) {
+                messages.push(Message {
+                    role: "assistant".to_string(),
+                    content: sanitize_discord_emojis(content),
+                    reasoning: None,
+                    name: Some("woofer".to_string()),
+                });
+            } else {
+                messages.push(Message {
+                    role: "user".to_string(),
+                    content: format!("woofer_bot: {}", sanitize_discord_emojis(content)),
+                    reasoning: None,
+                    name: Some("woofer_bot".to_string()),
+                });
+            }
         } else {
             let mut content = msg_content_for_gpt(msg);
             if content.to_lowercase().starts_with("puppy gpt ") {
@@ -136,6 +154,16 @@ In this conversation, there are the following participants: {authors}. You are r
     messages
 }
 
+fn is_puppy_gpt_response(msg: &serenity::all::Message) -> bool {
+    msg.content.starts_with(OUTPUT_PREFIX)
+        || msg.embeds.iter().any(is_think_embed)
+        || msg
+            .referenced_message
+            .as_ref()
+            .map(|referenced| referenced.content.to_lowercase().starts_with("puppy gpt "))
+            .unwrap_or(false)
+}
+
 fn msg_content_for_gpt(msg: &serenity::all::Message) -> String {
     let embed_text = embeds_to_text(&msg.embeds);
     if embed_text.is_empty() {
@@ -150,56 +178,74 @@ fn msg_content_for_gpt(msg: &serenity::all::Message) -> String {
 fn embeds_to_text(embeds: &[Embed]) -> String {
     let formatted: Vec<String> = embeds
         .iter()
-        .enumerate()
-        .filter_map(|(idx, embed)| embed_to_text(embed, idx + 1))
+        .filter(|embed| !is_think_embed(embed))
+        .filter_map(embed_to_text)
         .collect();
 
     formatted.join("\n\n")
 }
 
-fn embed_to_text(embed: &Embed, number: usize) -> Option<String> {
-    let mut lines = vec![format!("[Discord embed {number}]")];
+fn is_think_embed(embed: &Embed) -> bool {
+    embed
+        .description
+        .as_deref()
+        .map(|description| description.trim().eq_ignore_ascii_case("Think"))
+        .unwrap_or(false)
+}
 
-    push_opt_line(&mut lines, "Type", embed.kind.as_deref());
+fn embed_to_text(embed: &Embed) -> Option<String> {
+    let mut lines = Vec::new();
 
     if let Some(author) = &embed.author {
         let mut text = author.name.clone();
         if let Some(url) = &author.url {
             text.push_str(&format!(" ({url})"));
         }
-        push_line(&mut lines, "Author", text);
+        push_line(&mut lines, "By", text);
     }
 
     push_opt_line(
         &mut lines,
-        "Provider",
+        "From",
         embed.provider.as_ref().and_then(|p| p.name.as_deref()),
     );
-    push_opt_line(
-        &mut lines,
-        "Provider URL",
-        embed.provider.as_ref().and_then(|p| p.url.as_deref()),
-    );
-    push_opt_line(&mut lines, "Title", embed.title.as_deref());
-    push_opt_line(&mut lines, "URL", embed.url.as_deref());
-    push_opt_line(&mut lines, "Description", embed.description.as_deref());
+
+    if let Some(title) = embed.title.as_deref() {
+        let title = title.trim();
+        if !title.is_empty() {
+            if let Some(url) = embed
+                .url
+                .as_deref()
+                .map(str::trim)
+                .filter(|url| !url.is_empty())
+            {
+                lines.push(format!("{title} ({url})"));
+            } else {
+                lines.push(title.to_string());
+            }
+        }
+    } else {
+        push_opt_line(&mut lines, "URL", embed.url.as_deref());
+    }
+
+    push_opt_text(&mut lines, embed.description.as_deref());
 
     for field in &embed.fields {
         let name = field.name.trim();
         let value = field.value.trim();
         if !name.is_empty() || !value.is_empty() {
-            lines.push(format!("Field - {name}: {value}"));
+            lines.push(format!("{name}: {value}"));
         }
     }
 
     push_opt_line(
         &mut lines,
-        "Image",
+        "Image URL",
         embed.image.as_ref().map(|image| image.url.as_str()),
     );
     push_opt_line(
         &mut lines,
-        "Thumbnail",
+        "Thumbnail URL",
         embed
             .thumbnail
             .as_ref()
@@ -207,20 +253,11 @@ fn embed_to_text(embed: &Embed, number: usize) -> Option<String> {
     );
     push_opt_line(
         &mut lines,
-        "Video",
+        "Video URL",
         embed.video.as_ref().map(|video| video.url.as_str()),
     );
-    push_opt_line(
-        &mut lines,
-        "Footer",
-        embed.footer.as_ref().map(|footer| footer.text.as_str()),
-    );
 
-    if let Some(timestamp) = embed.timestamp {
-        push_line(&mut lines, "Timestamp", timestamp.to_string());
-    }
-
-    if lines.len() == 1 {
+    if lines.is_empty() {
         None
     } else {
         Some(lines.join("\n"))
@@ -236,6 +273,15 @@ fn push_opt_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
     }
 }
 
+fn push_opt_text(lines: &mut Vec<String>, value: Option<&str>) {
+    if let Some(value) = value {
+        let value = value.trim();
+        if !value.is_empty() {
+            lines.push(value.to_string());
+        }
+    }
+}
+
 fn push_line(lines: &mut Vec<String>, label: &str, value: impl AsRef<str>) {
     lines.push(format!("{label}: {}", value.as_ref()));
 }
@@ -247,23 +293,28 @@ fn sanitize_discord_emojis(text: &str) -> String {
     RE.replace_all(text, ":$1:").to_string()
 }
 
+pub fn set_available_emojis(emojis: impl IntoIterator<Item = Emoji>) -> usize {
+    let mut mappings = EMOJI_MAPPINGS.write().unwrap();
+    mappings.clear();
+
+    for emoji in emojis {
+        if emoji.available {
+            mappings.insert(emoji.name.clone(), emoji.to_string());
+        }
+    }
+
+    mappings.len()
+}
+
 fn replace_discord_emojis(input: &str) -> String {
     lazy_static! {
-        static ref MAPPINGS: HashMap<&'static str, &'static str> = {
-            let mut m = HashMap::new();
-            m.insert("woof", "<:woof:441843756040323092>");
-            m.insert("awoo", "<:awoo:984697374402289705>");
-            m.insert("puphooray", "<:puphooray:672916714589126663>");
-            m.insert("pupsplit", "<:pupsplit:948732828886118410>");
-            m.insert("petpup", "<a:petpup:915489497490292757>");
-            m
-        };
         static ref RE: Regex = Regex::new(r":([a-zA-Z0-9_]+):").unwrap();
     }
 
+    let mappings = EMOJI_MAPPINGS.read().unwrap();
     RE.replace_all(input, |caps: &regex::Captures| {
         if let Some(word) = caps.get(1) {
-            if let Some(&discord_emoji) = MAPPINGS.get(word.as_str()) {
+            if let Some(discord_emoji) = mappings.get(word.as_str()) {
                 return discord_emoji.to_string();
             }
         }
